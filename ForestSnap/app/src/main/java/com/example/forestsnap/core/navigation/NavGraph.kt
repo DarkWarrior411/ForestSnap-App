@@ -21,7 +21,11 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -36,7 +40,10 @@ import androidx.navigation.compose.rememberNavController
 import com.example.forestsnap.core.components.EarthLoader
 import com.example.forestsnap.features.dashboard.CameraScreen
 import com.example.forestsnap.features.dashboard.DashboardScreen
+import com.example.forestsnap.features.map.MapScreen
+import com.example.forestsnap.features.settings.SettingsScreen
 import com.example.forestsnap.features.syncqueue.SyncQueueScreen
+import kotlinx.coroutines.delay
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
     object Dashboard : Screen("dashboard", "Home", Icons.Filled.Home)
@@ -87,31 +94,68 @@ fun MainScreen() {
             startDestination = Screen.Dashboard.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Screen.Dashboard.route) { DashboardScreen(navController) }
-            composable(Screen.Map.route) { PlaceholderScreen("Map View") }
-            composable(Screen.SyncQueue.route) { SyncQueueScreen() }
-            composable(Screen.Settings.route) { PlaceholderScreen("Settings") }
-            composable(Screen.Camera.route) { CameraScreen(navController) }
+            composable(Screen.Dashboard.route) {
+                DashboardScreen(navController)
+            }
+
+            composable(Screen.Map.route) {
+                TabLoadingWrapper(loadingText = "Loading Map Data...") {
+                    MapScreen()
+                }
+            }
+
+            composable(Screen.SyncQueue.route) {
+                TabLoadingWrapper(loadingText = "Checking Sync Queue...") {
+                    SyncQueueScreen()
+                }
+            }
+
+            composable(Screen.Settings.route) {
+                TabLoadingWrapper(loadingText = "Loading Preferences...") {
+                    SettingsScreen()
+                }
+            }
+
+            composable(Screen.Camera.route) {
+                CameraScreen(navController)
+            }
         }
     }
 }
 
 @Composable
-fun PlaceholderScreen(title: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
+fun TabLoadingWrapper(
+    loadingText: String,
+    content: @Composable () -> Unit
+) {
+    // State to track if we are currently loading
+    var isLoading by remember { mutableStateOf(true) }
+
+    // This effect runs once every time this tab is opened
+    LaunchedEffect(Unit) {
+        isLoading = true
+        delay(600) // 600 milliseconds delay
+        isLoading = false
+    }
+
+    // UI Logic: Show Loader OR Show Content
+    if (isLoading) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
         ) {
-            EarthLoader()
-            Spacer(modifier = Modifier.height(32.dp))
-            Text(
-                text = "Developing: $title",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray
-            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                EarthLoader()
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = loadingText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray
+                )
+            }
         }
+    } else {
+        // Render the actual screen once loading is done
+        content()
     }
 }
