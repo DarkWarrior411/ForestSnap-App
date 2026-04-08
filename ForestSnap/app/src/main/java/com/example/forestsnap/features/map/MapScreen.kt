@@ -8,15 +8,22 @@ import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.forestsnap.features.dashboard.DashboardViewModel
 
 @Composable
-fun MapScreen() {
+fun MapScreen(viewModel: DashboardViewModel) {
+
+    // --- NEW: Observe the live location state from the Shared ViewModel ---
+    val uiState by viewModel.uiState.collectAsState()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -49,7 +56,10 @@ fun MapScreen() {
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text("Current Coordinates", fontWeight = FontWeight.Bold)
-                    Text("Lat: 12.9716, Lng: 77.5946", style = MaterialTheme.typography.bodyMedium)
+
+                    // --- NEW: Replace hardcoded coordinates with the real ones ---
+                    Text(text = uiState.locationText, style = MaterialTheme.typography.bodyMedium)
+
                     Text("Accuracy: ± 4 meters", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                 }
             }

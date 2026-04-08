@@ -3,6 +3,7 @@
 package com.example.forestsnap.features.dashboard
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
@@ -30,10 +31,13 @@ import androidx.navigation.NavController
 import com.example.forestsnap.data.local.ForestDatabase
 import com.example.forestsnap.data.local.SyncSnapEntity
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.concurrent.Executor
 
+@SuppressLint("MissingPermission")
 @Composable
 fun CameraScreen(navController: NavController) {
     val context = LocalContext.current
@@ -70,7 +74,12 @@ fun CameraScreen(navController: NavController) {
     if (hasPermissions) {
         CameraPreviewView(context, lifecycleOwner) { file ->
             if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+
+                // --- NEW: Force a fresh, high-accuracy location read instead of lastLocation ---
+                fusedLocationClient.getCurrentLocation(
+                    Priority.PRIORITY_HIGH_ACCURACY,
+                    CancellationTokenSource().token
+                ).addOnSuccessListener { location: Location? ->
                     val lat = location?.latitude ?: 0.0
                     val lon = location?.longitude ?: 0.0
 
@@ -85,9 +94,22 @@ fun CameraScreen(navController: NavController) {
                         )
                         navController.popBackStack()
                     }
+                }.addOnFailureListener {
+                    // Fallback if the location request fails
+                    coroutineScope.launch {
+                        syncDao.insertSnap(
+                            SyncSnapEntity(
+                                photoPath = file.absolutePath,
+                                latitude = 0.0,
+                                longitude = 0.0,
+                                timestamp = System.currentTimeMillis()
+                            )
+                        )
+                        navController.popBackStack()
+                    }
                 }
             } else {
-                navController.popBackStack() // Fallback if location fails
+                navController.popBackStack()
             }
         }
     } else {
@@ -130,7 +152,9 @@ fun CameraPreviewView(
 
         Button(
             onClick = { takePhoto(imageCapture, context, executor, onImageCaptured) },
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 32.dp)
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 32.dp)
         ) {
             Text("Snap & Save Data")
         }

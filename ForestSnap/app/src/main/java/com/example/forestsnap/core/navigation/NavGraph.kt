@@ -1,5 +1,3 @@
-// app/src/main/java/com/example/forestsnap/core/navigation/NavGraph.kt
-
 package com.example.forestsnap.core.navigation
 
 import androidx.compose.foundation.layout.Box
@@ -31,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -40,6 +39,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.forestsnap.core.components.EarthLoader
 import com.example.forestsnap.features.dashboard.CameraScreen
 import com.example.forestsnap.features.dashboard.DashboardScreen
+import com.example.forestsnap.features.dashboard.DashboardViewModel
 import com.example.forestsnap.features.map.MapScreen
 import com.example.forestsnap.features.settings.SettingsScreen
 import com.example.forestsnap.features.syncqueue.SyncQueueScreen
@@ -56,6 +56,10 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
+
+    // --- NEW: Create a Shared ViewModel here ---
+    // This allows the Dashboard and Map to share the exact same location data
+    val sharedLocationViewModel: DashboardViewModel = viewModel()
 
     val items = listOf(
         Screen.Dashboard,
@@ -95,12 +99,14 @@ fun MainScreen() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Dashboard.route) {
-                DashboardScreen(navController)
+                // Pass the shared ViewModel to the Dashboard
+                DashboardScreen(navController = navController, viewModel = sharedLocationViewModel)
             }
 
             composable(Screen.Map.route) {
                 TabLoadingWrapper(loadingText = "Loading Map Data...") {
-                    MapScreen()
+                    // Pass the shared ViewModel to the Map
+                    MapScreen(viewModel = sharedLocationViewModel)
                 }
             }
 
@@ -128,17 +134,14 @@ fun TabLoadingWrapper(
     loadingText: String,
     content: @Composable () -> Unit
 ) {
-    // State to track if we are currently loading
     var isLoading by remember { mutableStateOf(true) }
 
-    // This effect runs once every time this tab is opened
     LaunchedEffect(Unit) {
         isLoading = true
-        delay(600) // 600 milliseconds delay
+        delay(600)
         isLoading = false
     }
 
-    // UI Logic: Show Loader OR Show Content
     if (isLoading) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -155,7 +158,6 @@ fun TabLoadingWrapper(
             }
         }
     } else {
-        // Render the actual screen once loading is done
         content()
     }
 }

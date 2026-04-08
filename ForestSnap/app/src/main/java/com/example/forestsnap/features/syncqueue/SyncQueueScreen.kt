@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -76,7 +77,8 @@ fun SyncQueueScreen(viewModel: SyncQueueViewModel = viewModel()) {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(queue) { snap ->
                     Card(
-                        modifier = Modifier.fillMaxWidth().clickable { selectedImagePath = snap.photoPath }
+                        modifier = Modifier.fillMaxWidth().clickable { selectedImagePath = snap.photoPath },
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
                         Row(
                             modifier = Modifier.padding(16.dp),
@@ -94,10 +96,11 @@ fun SyncQueueScreen(viewModel: SyncQueueViewModel = viewModel()) {
                             Spacer(modifier = Modifier.width(16.dp))
 
                             Column {
-                                Text("Snap ID: ${snap.id}", style = MaterialTheme.typography.titleMedium)
-                                Text("Time: ${formatTimestamp(snap.timestamp)}", style = MaterialTheme.typography.bodySmall)
-                                Text("Lat: ${String.format("%.4f", snap.latitude)}", style = MaterialTheme.typography.bodyMedium)
-                                Text("Lon: ${String.format("%.4f", snap.longitude)}", style = MaterialTheme.typography.bodyMedium)
+                                Text("Snap ID: ${snap.id}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text("Time: ${formatTimestamp(snap.timestamp)}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("Lat: ${String.format("%.4f", snap.latitude)}°", style = MaterialTheme.typography.bodyMedium)
+                                Text("Lng: ${String.format("%.4f", snap.longitude)}°", style = MaterialTheme.typography.bodyMedium)
                             }
                         }
                     }
