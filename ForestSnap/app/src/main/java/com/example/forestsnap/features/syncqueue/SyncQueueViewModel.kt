@@ -1,34 +1,18 @@
+// app/src/main/java/com/example/forestsnap/features/syncqueue/SyncQueueViewModel.kt
+
 package com.example.forestsnap.features.syncqueue
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import com.example.forestsnap.data.repository.SyncSnapRepository
-import kotlinx.coroutines.flow.Flow
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.forestsnap.data.local.ForestDatabase
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 
-class SyncQueueViewModel(
-    private val repository: SyncSnapRepository
-) : ViewModel() {
-    
-    val unsyncedItems: Flow<List<com.example.forestsnap.data.local.SyncSnapEntity>> = repository.getUnsynced()
-    val unsyncedCount: Flow<Int> = repository.getUnsyncedCount()
-    
-    suspend fun syncAll() {
-        // Implement sync logic
-    }
-    
-    suspend fun retryFailed() {
-        // Implement retry logic
-    }
-    
-    suspend fun clearSynced() {
-        repository.deleteSynced()
-    }
-}
+class SyncQueueViewModel(application: Application) : AndroidViewModel(application) {
+    private val db = ForestDatabase.getDatabase(application)
+    private val dao = db.syncSnapDao()
 
-class SyncQueueViewModelFactory(
-    private val repository: SyncSnapRepository
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return SyncQueueViewModel(repository) as T
-    }
+    val pendingQueue = dao.getPendingSnaps()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 }

@@ -7,28 +7,12 @@ import kotlinx.coroutines.flow.Flow
 class SyncSnapRepository(database: ForestDatabase) {
     private val syncSnapDao = database.syncSnapDao()
 
-    suspend fun insertSyncSnap(syncSnap: SyncSnapEntity): Long {
-        return syncSnapDao.insert(syncSnap)
-    }
-
-    suspend fun updateSyncSnap(syncSnap: SyncSnapEntity) {
-        syncSnapDao.update(syncSnap)
-    }
-
-    suspend fun deleteSyncSnap(syncSnap: SyncSnapEntity) {
-        syncSnapDao.delete(syncSnap)
-    }
-
-    suspend fun getSyncSnapById(id: Int): SyncSnapEntity? {
-        return syncSnapDao.getById(id)
-    }
-
-    fun getAllSyncSnaps(): Flow<List<SyncSnapEntity>> {
-        return syncSnapDao.getAllAsFlow()
+    suspend fun insertSyncSnap(syncSnap: SyncSnapEntity) {
+        syncSnapDao.insertSnap(syncSnap)
     }
 
     fun getUnsynced(): Flow<List<SyncSnapEntity>> {
-        return syncSnapDao.getUnsyncedAsFlow()
+        return syncSnapDao.getPendingSnaps()
     }
 
     fun getUnsyncedCount(): Flow<Int> {
@@ -36,10 +20,6 @@ class SyncSnapRepository(database: ForestDatabase) {
     }
 
     suspend fun deleteSynced() {
-        syncSnapDao.deleteSynced()
-    }
-
-    suspend fun deleteAll() {
-        syncSnapDao.deleteAll()
+        syncSnapDao.clearSyncedSnaps()
     }
 }

@@ -1,15 +1,16 @@
+// app/src/main/java/com/example/forestsnap/data/local/SyncSnapEntity.kt
+
 package com.example.forestsnap.data.local
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "sync_queue")
+@Entity(tableName = "sync_snaps")
 data class SyncSnapEntity(
-    @PrimaryKey(autoGenerate = true)
-    val id: Int = 0,
-    val imagePath: String,
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val photoPath: String,
     val latitude: Double,
     val longitude: Double,
-    val timestamp: String,
-    val isSynced: Boolean = false // false = pending upload, true = synced to AWS
+    val timestamp: Long,
+    val isSynced: Boolean = false
 )

@@ -7,5 +7,5 @@ import com.example.forestsnap.data.repository.SyncSnapRepository
 class ForestSnapApplication : Application() {
     
     val database by lazy { ForestDatabase.getDatabase(this) }
-    val repository by lazy { SyncSnapRepository(database.syncSnapDao()) }
+    val repository by lazy { SyncSnapRepository(database) }
 }
