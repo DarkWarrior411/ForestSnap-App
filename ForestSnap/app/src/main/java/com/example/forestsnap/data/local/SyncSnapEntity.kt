@@ -1,5 +1,4 @@
 // app/src/main/java/com/example/forestsnap/data/local/SyncSnapEntity.kt
-
 package com.example.forestsnap.data.local
 
 import androidx.room.Entity
@@ -12,5 +11,10 @@ data class SyncSnapEntity(
     val latitude: Double,
     val longitude: Double,
     val timestamp: Long,
-    val isSynced: Boolean = false
+    val isSynced: Boolean = false,
+    
+    // --- ADD THE AI RESULTS ---
+    val fireRiskPercent: Double? = null,
+    val fuelLoadScore: Double? = null,
+    val drynessTier: Int? = null
 )

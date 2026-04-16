@@ -10,9 +10,12 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.forestsnap.data.remote.HistoryResponse
+import com.example.forestsnap.data.remote.NetworkModule
 import com.example.forestsnap.data.remote.WeatherService
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -28,7 +31,7 @@ import kotlinx.coroutines.launch
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
-// --- NEW: Added map caching states so both screens can share them ---
+// UI State including map caching and server data
 data class DashboardUiState(
     val isOnline: Boolean = true,
     val locationText: String = "Fetching GPS...",
@@ -37,7 +40,8 @@ data class DashboardUiState(
     val isRefreshing: Boolean = false,
     val isMapDownloading: Boolean = false,
     val mapDownloadProgress: Int = 0,
-    val isMapCached: Boolean = false
+    val isMapCached: Boolean = false,
+    val mapPins: List<HistoryResponse> = emptyList() // Holds your server data
 )
 
 class DashboardViewModel(application: Application) : AndroidViewModel(application) {
@@ -48,6 +52,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     private val fusedLocationClient = LocationServices.getFusedLocationProviderClient(application)
     private val connectivityManager = application.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
+    // Client-side weather for the dashboard display
     private val weatherApi = Retrofit.Builder()
         .baseUrl("https://api.open-meteo.com/")
         .addConverterFactory(GsonConverterFactory.create())
@@ -58,8 +63,8 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
     init {
         monitorNetworkConnection()
-        refreshData()
-        startAutoRefresh()
+        refreshData() // Do an initial fetch immediately
+        startAutoRefresh() // Start the silent background loop
     }
 
     // --- NEW: Function for the MapScreen to update the caching status ---
@@ -73,23 +78,49 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    // --- AUTO-REFRESH LOOP ---
     private fun startAutoRefresh() {
-        autoRefreshJob?.cancel()
+        autoRefreshJob?.cancel() // Cancel any existing loop just in case
         autoRefreshJob = viewModelScope.launch {
             while (isActive) {
+                // Wait for 5 minutes (300,000 milliseconds) before silently fetching again
                 delay(300_000)
+
+                // Silently fetch data without triggering the UI loading spinner
                 fetchLocation()
+                fetchServerHistory()
             }
         }
     }
 
     fun refreshData() {
         viewModelScope.launch {
+            // This one shows the loading spinner because the user manually requested it
             _uiState.update { it.copy(isRefreshing = true, locationText = "Fetching GPS...", weatherText = "Updating...") }
+
+            // Fire off both network requests concurrently
             fetchLocation()
-            delay(1000)
+            fetchServerHistory()
+
+            delay(1000) // Minimum delay so the spinner doesn't flash too quickly
             _uiState.update { it.copy(isRefreshing = false) }
             startAutoRefresh()
+        }
+    }
+
+    // Function to pull the seeded database records from FastAPI
+    private fun fetchServerHistory() {
+        viewModelScope.launch {
+            try {
+                // If offline, don't attempt the fetch
+                if (!_uiState.value.isOnline) return@launch
+
+                val history = NetworkModule.api.getHistoricalData()
+                _uiState.update { it.copy(mapPins = history) }
+                Log.i("DashboardViewModel", "Successfully fetched ${history.size} map pins.")
+            } catch (e: Exception) {
+                Log.e("DashboardViewModel", "Failed to fetch map pins: ${e.message}")
+            }
         }
     }
 
@@ -151,8 +182,10 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         val networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 _uiState.update { it.copy(isOnline = true) }
-                startAutoRefresh()
+                // Reconnected? Immediately fetch map pins and location!
+                refreshData()
             }
+
             override fun onLost(network: Network) {
                 _uiState.update { it.copy(isOnline = false) }
             }
