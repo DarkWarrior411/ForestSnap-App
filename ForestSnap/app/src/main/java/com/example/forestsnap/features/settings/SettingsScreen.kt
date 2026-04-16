@@ -1,9 +1,13 @@
 package com.example.forestsnap.features.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.SettingsBrightness
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -12,11 +16,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen() {
     var localCompressionEnabled by remember { mutableStateOf(true) }
     var strictLocationEnabled by remember { mutableStateOf(true) }
     var offlineModeEnabled by remember { mutableStateOf(false) }
+
+    // Theme State (Ideally, you'll hook this up to your PreferenceManager later)
+    var selectedTheme by remember { mutableStateOf("System Default") }
+    var showThemeDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier
@@ -31,6 +40,40 @@ fun SettingsScreen() {
                 modifier = Modifier.padding(bottom = 24.dp)
             )
         }
+
+        // --- NEW: Appearance Section ---
+        item { SettingsSectionTitle("Appearance") }
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showThemeDialog = true }
+                    .padding(vertical = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text("App Theme", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
+                        Text(selectedTheme, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    }
+                    Icon(
+                        imageVector = when(selectedTheme) {
+                            "Light" -> Icons.Default.LightMode
+                            "Dark" -> Icons.Default.DarkMode
+                            else -> Icons.Default.SettingsBrightness
+                        },
+                        contentDescription = "Theme Icon",
+                        tint = Color(0xFF2E7D32)
+                    )
+                }
+            }
+        }
+
+        item { Spacer(modifier = Modifier.height(16.dp)) }
 
         item { SettingsSectionTitle("Image Processing") }
         item {
@@ -84,6 +127,47 @@ fun SettingsScreen() {
         }
 
         item { Spacer(modifier = Modifier.height(16.dp)) }
+    }
+
+    // --- NEW: Theme Selection Dialog ---
+    if (showThemeDialog) {
+        AlertDialog(
+            onDismissRequest = { showThemeDialog = false },
+            title = { Text("Select Theme") },
+            text = {
+                Column {
+                    val themes = listOf("System Default", "Light", "Dark")
+                    themes.forEach { theme ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedTheme = theme
+                                    showThemeDialog = false
+                                    // TODO: Save to PreferenceManager here
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedTheme == theme,
+                                onClick = {
+                                    selectedTheme = theme
+                                    showThemeDialog = false
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(theme)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showThemeDialog = false }) {
+                    Text("Cancel", color = Color(0xFF2E7D32))
+                }
+            }
+        )
     }
 }
 

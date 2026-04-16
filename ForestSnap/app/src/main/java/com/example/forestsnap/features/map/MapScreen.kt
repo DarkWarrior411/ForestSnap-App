@@ -1,28 +1,52 @@
 package com.example.forestsnap.features.map
 
-import androidx.compose.foundation.background
+import android.preference.PreferenceManager
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.example.forestsnap.features.dashboard.DashboardViewModel
+import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.compass.CompassOverlay
+import org.osmdroid.views.overlay.compass.InternalCompassOrientationProvider
 
 @Composable
 fun MapScreen(viewModel: DashboardViewModel) {
-
-    // --- NEW: Observe the live location state from the Shared ViewModel ---
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    // Initialize OSMDroid configuration
+    LaunchedEffect(Unit) {
+        Configuration.getInstance().load(context, PreferenceManager.getDefaultSharedPreferences(context))
+        Configuration.getInstance().userAgentValue = context.packageName
+    }
+
+    var currentLat by remember { mutableStateOf(13.0308) }
+    var currentLng by remember { mutableStateOf(77.5650) }
+
+    LaunchedEffect(uiState.locationText) {
+        try {
+            if (!uiState.locationText.contains("Fetching") && !uiState.locationText.contains("Required")) {
+                val parts = uiState.locationText.split(",")
+                if (parts.size == 2) {
+                    currentLat = parts[0].replace("Lat:", "").trim().toDouble()
+                    currentLng = parts[1].replace("Lng:", "").trim().toDouble()
+                }
+            }
+        } catch (e: Exception) { /* Ignore */ }
+    }
 
     Column(
         modifier = Modifier
@@ -30,65 +54,39 @@ fun MapScreen(viewModel: DashboardViewModel) {
             .padding(16.dp)
     ) {
         Text(
-            text = "Map View",
+            text = "Wilderness Map",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9))
-        ) {
-            Row(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MyLocation,
-                    contentDescription = "Current Location",
-                    tint = Color(0xFF2E7D32)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text("Current Coordinates", fontWeight = FontWeight.Bold)
-
-                    // --- NEW: Replace hardcoded coordinates with the real ones ---
-                    Text(text = uiState.locationText, style = MaterialTheme.typography.bodyMedium)
-
-                    Text("Accuracy: ± 4 meters", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                }
-            }
-        }
-
+        // Map Wrapper
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFFE0E0E0)),
-            contentAlignment = Alignment.Center
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    imageVector = Icons.Default.Map,
-                    contentDescription = "Map Placeholder",
-                    modifier = Modifier.size(64.dp),
-                    tint = Color.Gray
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Map SDK will render here",
-                    color = Color.DarkGray,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        }
+            AndroidView(
+                factory = { ctx ->
+                    MapView(ctx).apply {
+                        setTileSource(TileSourceFactory.MAPNIK)
+                        setMultiTouchControls(true)
+                        controller.setZoom(15.0)
+                        controller.setCenter(GeoPoint(currentLat, currentLng))
 
-        Spacer(modifier = Modifier.height(16.dp))
+                        // Hardware Compass Overlay
+                        val compassOverlay = CompassOverlay(ctx, InternalCompassOrientationProvider(ctx), this)
+                        compassOverlay.enableCompass()
+                        this.overlays.add(compassOverlay)
+                    }
+                },
+                update = { view ->
+                    view.controller.animateTo(GeoPoint(currentLat, currentLng))
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
     }
 }

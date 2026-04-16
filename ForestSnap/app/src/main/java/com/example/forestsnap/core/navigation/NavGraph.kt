@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -56,9 +57,6 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
-
-    // --- NEW: Create a Shared ViewModel here ---
-    // This allows the Dashboard and Map to share the exact same location data
     val sharedLocationViewModel: DashboardViewModel = viewModel()
 
     val items = listOf(
@@ -68,67 +66,52 @@ fun MainScreen() {
         Screen.Settings
     )
 
-    Scaffold(
-        bottomBar = {
-            NavigationBar {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentDestination = navBackStackEntry?.destination
+    // --- NEW: Surface forces the entire app background to respect Dark/Light Mode ---
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Scaffold(
+            bottomBar = {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    val navBackStackEntry by navController.currentBackStackEntryAsState()
+                    val currentDestination = navBackStackEntry?.destination
 
-                items.forEach { screen ->
-                    NavigationBarItem(
-                        icon = { Icon(screen.icon, contentDescription = screen.title) },
-                        label = { Text(screen.title) },
-                        selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
-                        onClick = {
-                            navController.navigate(screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+                    items.forEach { screen ->
+                        NavigationBarItem(
+                            icon = { Icon(screen.icon, contentDescription = screen.title) },
+                            label = { Text(screen.title) },
+                            selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                            onClick = {
+                                navController.navigate(screen.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
-        }
-    ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = Screen.Dashboard.route,
-            modifier = Modifier.padding(innerPadding)
-        ) {
-            composable(Screen.Dashboard.route) {
-                // Pass the shared ViewModel to the Dashboard
-                DashboardScreen(navController = navController, viewModel = sharedLocationViewModel)
-            }
-
-            composable(Screen.Map.route) {
-                TabLoadingWrapper(loadingText = "Loading Map Data...") {
-                    // Pass the shared ViewModel to the Map
-                    MapScreen(viewModel = sharedLocationViewModel)
-                }
-            }
-
-            composable(Screen.SyncQueue.route) {
-                TabLoadingWrapper(loadingText = "Checking Sync Queue...") {
-                    SyncQueueScreen()
-                }
-            }
-
-            composable(Screen.Settings.route) {
-                TabLoadingWrapper(loadingText = "Loading Preferences...") {
-                    SettingsScreen()
-                }
-            }
-
-            composable(Screen.Camera.route) {
-                CameraScreen(navController)
+        ) { innerPadding ->
+            NavHost(
+                navController = navController,
+                startDestination = Screen.Dashboard.route,
+                modifier = Modifier.padding(innerPadding)
+            ) {
+                composable(Screen.Dashboard.route) { DashboardScreen(navController, sharedLocationViewModel) }
+                composable(Screen.Map.route) { TabLoadingWrapper("Loading Map Data...") { MapScreen(sharedLocationViewModel) } }
+                composable(Screen.SyncQueue.route) { TabLoadingWrapper("Checking Sync Queue...") { SyncQueueScreen() } }
+                composable(Screen.Settings.route) { TabLoadingWrapper("Loading Preferences...") { SettingsScreen() } }
+                composable(Screen.Camera.route) { CameraScreen(navController) }
             }
         }
     }
 }
-
 @Composable
 fun TabLoadingWrapper(
     loadingText: String,

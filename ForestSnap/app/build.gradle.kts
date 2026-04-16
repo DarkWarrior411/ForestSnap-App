@@ -114,6 +114,7 @@ dependencies {
     // Maps (for MapScreen)
     implementation("com.google.maps.android:maps-compose:4.1.1")
     implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
 
     val roomVersion = "2.6.1"
     implementation("androidx.room:room-runtime:$roomVersion")
