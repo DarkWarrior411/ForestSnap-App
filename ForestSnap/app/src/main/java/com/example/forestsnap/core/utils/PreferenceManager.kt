@@ -7,25 +7,26 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-// DataStore for storing user preferences
-val Context.dataStore by preferencesDataStore(name = "forestsnap_preferences")
+// CRITICAL: This MUST sit outside the class at the top level to act as a true Singleton
+val Context.dataStore by preferencesDataStore(name = "settings")
 
-object PreferenceKeys {
-    val USER_ID = stringPreferencesKey("user_id")
-    val LAST_SYNC_TIME = stringPreferencesKey("last_sync_time")
-    val SYNC_ENABLED = stringPreferencesKey("sync_enabled")
-    val THEME_MODE = stringPreferencesKey("theme_mode")
-}
+class PreferenceManager(context: Context) {
+    // Force the use of the Application Context so all screens share the same DataStore
+    private val appContext = context.applicationContext
 
-class PreferenceManager(private val context: Context) {
-
-    val themeFlow: Flow<String> = context.dataStore.data.map { preferences ->
-        preferences[PreferenceKeys.THEME_MODE] ?: "System Default"
+    companion object {
+        val THEME_KEY = stringPreferencesKey("app_theme")
     }
 
-    suspend fun setThemeMode(mode: String) {
-        context.dataStore.edit { preferences ->
-            preferences[PreferenceKeys.THEME_MODE] = mode
+    // Read the theme from DataStore
+    val themeFlow: Flow<String> = appContext.dataStore.data.map { preferences ->
+        preferences[THEME_KEY] ?: "System Default"
+    }
+
+    // Save the theme to DataStore
+    suspend fun saveTheme(theme: String) {
+        appContext.dataStore.edit { preferences ->
+            preferences[THEME_KEY] = theme
         }
     }
 }

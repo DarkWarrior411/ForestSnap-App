@@ -28,12 +28,16 @@ import kotlinx.coroutines.launch
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
+// --- NEW: Added map caching states so both screens can share them ---
 data class DashboardUiState(
     val isOnline: Boolean = true,
     val locationText: String = "Fetching GPS...",
     val weatherText: String = "Loading...",
     val riskLevel: String = "Low",
-    val isRefreshing: Boolean = false
+    val isRefreshing: Boolean = false,
+    val isMapDownloading: Boolean = false,
+    val mapDownloadProgress: Int = 0,
+    val isMapCached: Boolean = false
 )
 
 class DashboardViewModel(application: Application) : AndroidViewModel(application) {
@@ -50,41 +54,41 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         .build()
         .create(WeatherService::class.java)
 
-    // NEW: Job to hold our auto-refresh loop
     private var autoRefreshJob: Job? = null
 
     init {
         monitorNetworkConnection()
-        refreshData() // Do an initial fetch immediately
-        startAutoRefresh() // Start the silent background loop
+        refreshData()
+        startAutoRefresh()
     }
 
-    // --- NEW: The Auto-Refresh Loop ---
+    // --- NEW: Function for the MapScreen to update the caching status ---
+    fun updateMapCacheStatus(isDownloading: Boolean, progress: Int, isCached: Boolean) {
+        _uiState.update {
+            it.copy(
+                isMapDownloading = isDownloading,
+                mapDownloadProgress = progress,
+                isMapCached = isCached
+            )
+        }
+    }
+
     private fun startAutoRefresh() {
-        autoRefreshJob?.cancel() // Cancel any existing loop just in case
+        autoRefreshJob?.cancel()
         autoRefreshJob = viewModelScope.launch {
             while (isActive) {
-                // Wait for 5 minutes (300,000 milliseconds) before silently fetching again
                 delay(300_000)
-
-                // Silently fetch data without triggering the UI loading spinner
                 fetchLocation()
             }
         }
     }
 
-    // Handle Manual Pull-to-Refresh
     fun refreshData() {
         viewModelScope.launch {
-            // This one shows the loading spinner because the user manually requested it
             _uiState.update { it.copy(isRefreshing = true, locationText = "Fetching GPS...", weatherText = "Updating...") }
-
             fetchLocation()
-
-            delay(1000) // Minimum delay so the spinner doesn't flash too quickly
+            delay(1000)
             _uiState.update { it.copy(isRefreshing = false) }
-
-            // Restart the auto-refresh timer so it doesn't double-fire right after a manual pull
             startAutoRefresh()
         }
     }
@@ -111,7 +115,6 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
                     fetchRealWeather(lat, lng)
                 } else {
-                    // Only update error text if we don't already have valid coordinates
                     if (_uiState.value.locationText.contains("Fetching")) {
                         _uiState.update { it.copy(locationText = "Location unavailable") }
                     }
@@ -135,7 +138,6 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
                 _uiState.update { it.copy(weatherText = "$temp°C - $description") }
             } catch (e: Exception) {
-                // If the auto-refresh fails because they walked offline, just show N/A
                 _uiState.update { it.copy(weatherText = "Offline Mode - Weather N/A") }
             }
         }
@@ -149,17 +151,14 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         val networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 _uiState.update { it.copy(isOnline = true) }
-                // Optional: If they reconnect to the internet, immediately fetch the weather!
                 startAutoRefresh()
             }
-
             override fun onLost(network: Network) {
                 _uiState.update { it.copy(isOnline = false) }
             }
         }
 
         connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
-
         val activeNetwork = connectivityManager.activeNetwork
         val isInitiallyOnline = activeNetwork != null
         _uiState.update { it.copy(isOnline = isInitiallyOnline) }

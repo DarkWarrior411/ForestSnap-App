@@ -17,27 +17,32 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // --- CRITICAL FIX 1: OSMDroid Storage Permissions ---
-        // Forces OSMDroid to use internal app storage, preventing SecurityException crashes on Android 10+
+        // --- CRITICAL FIX: OSMDroid Storage Routing ---
+        // Force OSMDroid to use the app's private internal storage instead of the restricted public SD card.
         val osmConfig = Configuration.getInstance()
         osmConfig.userAgentValue = packageName
+
         val basePath = File(cacheDir.absolutePath, "osmdroid")
         osmConfig.osmdroidBasePath = basePath
+
         val tileCache = File(osmConfig.osmdroidBasePath, "tile")
         osmConfig.osmdroidTileCache = tileCache
 
         setContent {
-            // --- CRITICAL FIX 2: Dark Mode Hookup ---
+            // 1. Initialize the PreferenceManager
             val preferenceManager = remember { PreferenceManager(applicationContext) }
+
+            // 2. Observe the DataStore Flow
             val savedTheme by preferenceManager.themeFlow.collectAsState(initial = "System Default")
 
+            // 3. Evaluate the boolean for our Theme wrapper
             val darkTheme = when (savedTheme) {
                 "Light" -> false
                 "Dark" -> true
                 else -> isSystemInDarkTheme()
             }
 
-            // The app is now wrapped in the dynamic theme state!
+            // 4. Wrap the app
             ForestSnapTheme(darkTheme = darkTheme) {
                 MainScreen()
             }

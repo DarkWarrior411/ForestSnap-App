@@ -1,5 +1,6 @@
 package com.example.forestsnap.features.settings
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,24 +13,31 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.forestsnap.core.utils.PreferenceManager
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen() {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val preferenceManager = remember { PreferenceManager(context) }
+
+    // Read the master theme state directly from DataStore
+    val selectedTheme by preferenceManager.themeFlow.collectAsState(initial = "System Default")
+
     var localCompressionEnabled by remember { mutableStateOf(true) }
     var strictLocationEnabled by remember { mutableStateOf(true) }
     var offlineModeEnabled by remember { mutableStateOf(false) }
-
-    // Theme State (Ideally, you'll hook this up to your PreferenceManager later)
-    var selectedTheme by remember { mutableStateOf("System Default") }
     var showThemeDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
+            // --- CRITICAL: Forces the background to change color ---
+            .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
         item {
@@ -37,11 +45,11 @@ fun SettingsScreen() {
                 text = "Settings",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
         }
 
-        // --- NEW: Appearance Section ---
         item { SettingsSectionTitle("Appearance") }
         item {
             Card(
@@ -49,7 +57,10 @@ fun SettingsScreen() {
                     .fillMaxWidth()
                     .clickable { showThemeDialog = true }
                     .padding(vertical = 8.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),
@@ -58,7 +69,7 @@ fun SettingsScreen() {
                 ) {
                     Column {
                         Text("App Theme", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
-                        Text(selectedTheme, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        Text(selectedTheme, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
                     }
                     Icon(
                         imageVector = when(selectedTheme) {
@@ -67,7 +78,7 @@ fun SettingsScreen() {
                             else -> Icons.Default.SettingsBrightness
                         },
                         contentDescription = "Theme Icon",
-                        tint = Color(0xFF2E7D32)
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -110,13 +121,16 @@ fun SettingsScreen() {
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Info, contentDescription = "Info", tint = Color.Gray)
+                    Icon(Icons.Default.Info, contentDescription = "Info", tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text("App Version", fontWeight = FontWeight.Bold)
@@ -125,26 +139,25 @@ fun SettingsScreen() {
                 }
             }
         }
-
-        item { Spacer(modifier = Modifier.height(16.dp)) }
+        item { Spacer(modifier = Modifier.height(32.dp)) }
     }
 
-    // --- NEW: Theme Selection Dialog ---
     if (showThemeDialog) {
         AlertDialog(
             onDismissRequest = { showThemeDialog = false },
             title = { Text("Select Theme") },
+            containerColor = MaterialTheme.colorScheme.surface,
             text = {
                 Column {
-                    val themes = listOf("System Default", "Light", "Dark")
-                    themes.forEach { theme ->
+                    listOf("System Default", "Light", "Dark").forEach { theme ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    selectedTheme = theme
-                                    showThemeDialog = false
-                                    // TODO: Save to PreferenceManager here
+                                    coroutineScope.launch {
+                                        preferenceManager.saveTheme(theme)
+                                        showThemeDialog = false
+                                    }
                                 }
                                 .padding(vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -152,19 +165,21 @@ fun SettingsScreen() {
                             RadioButton(
                                 selected = selectedTheme == theme,
                                 onClick = {
-                                    selectedTheme = theme
-                                    showThemeDialog = false
+                                    coroutineScope.launch {
+                                        preferenceManager.saveTheme(theme)
+                                        showThemeDialog = false
+                                    }
                                 }
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(theme)
+                            Text(theme, color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
                 }
             },
             confirmButton = {
                 TextButton(onClick = { showThemeDialog = false }) {
-                    Text("Cancel", color = Color(0xFF2E7D32))
+                    Text("Cancel", color = MaterialTheme.colorScheme.primary)
                 }
             }
         )
@@ -176,36 +191,29 @@ fun SettingsSectionTitle(title: String) {
     Text(
         text = title,
         style = MaterialTheme.typography.titleSmall,
-        color = Color(0xFF2E7D32),
+        color = MaterialTheme.colorScheme.primary,
         fontWeight = FontWeight.Bold,
         modifier = Modifier.padding(bottom = 8.dp, top = 8.dp)
     )
 }
 
 @Composable
-fun SettingsToggleItem(
-    title: String,
-    description: String,
-    isChecked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
+fun SettingsToggleItem(title: String, description: String, isChecked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-            Text(text = description, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Text(text = title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onBackground)
+            Text(text = description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f))
         }
         Switch(
             checked = isChecked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = Color(0xFF2E7D32)
+                checkedThumbColor = MaterialTheme.colorScheme.surface,
+                checkedTrackColor = MaterialTheme.colorScheme.primary
             )
         )
     }

@@ -1,10 +1,8 @@
 package com.example.forestsnap.features.dashboard
 
 import android.Manifest
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -15,7 +13,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Warning
@@ -28,18 +25,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import kotlinx.coroutines.launch
-
-// OSMDroid imports for caching
-import org.osmdroid.tileprovider.cachemanager.CacheManager
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.BoundingBox
-import org.osmdroid.views.MapView
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,40 +39,16 @@ fun DashboardScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showLocationWarning by remember { mutableStateOf(false) }
     val pullRefreshState = rememberPullToRefreshState()
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-
-    // --- Checklist States & Logic ---
-    var currentLat by remember { mutableStateOf(13.0308) }
-    var currentLng by remember { mutableStateOf(77.5650) }
-    var isDownloading by remember { mutableStateOf(false) }
-    var downloadProgress by remember { mutableStateOf(0) }
-    var isMapCached by remember { mutableStateOf(false) }
-
-    // Update coordinates when ViewModel gets a lock
-    LaunchedEffect(uiState.locationText) {
-        try {
-            if (!uiState.locationText.contains("Fetching") && !uiState.locationText.contains("Required") && !uiState.locationText.contains("Failed")) {
-                val parts = uiState.locationText.split(",")
-                if (parts.size == 2) {
-                    currentLat = parts[0].replace("Lat:", "").trim().toDouble()
-                    currentLng = parts[1].replace("Lng:", "").trim().toDouble()
-                }
-            }
-        } catch (e: Exception) { /* Keep defaults if parsing fails */ }
-    }
 
     val isLocationLocked = !uiState.locationText.contains("Fetching") &&
             !uiState.locationText.contains("Required") &&
             !uiState.locationText.contains("Failed")
 
-    // --- Permissions ---
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val fineLocationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
         val coarseLocationGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
-
         if (fineLocationGranted || coarseLocationGranted) {
             viewModel.refreshData()
         }
@@ -104,11 +69,12 @@ fun DashboardScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // --- Status Indicator (Online/Offline) ---
+            // Status Indicator (Online/Offline)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -131,148 +97,70 @@ fun DashboardScreen(
                 )
             }
 
-            // --- THE TRAILHEAD CHECKLIST ---
-            AnimatedVisibility(visible = !isMapCached) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Pre-Trek Checklist", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("Complete before losing Wi-Fi/Cellular", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+            // --- THE PRE-TREK STATUS BOARD ---
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Pre-Trek Status", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Ensure both are green before going off-grid.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                        // Step 1: GPS Lock
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
-                            Icon(
-                                imageVector = if (isLocationLocked) Icons.Default.CheckCircle else Icons.Default.Warning,
-                                contentDescription = "GPS Status",
-                                tint = if (isLocationLocked) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(if (isLocationLocked) "GPS Locked" else "Waiting for GPS Lock...", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    // GPS Status
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
+                        Icon(
+                            imageVector = if (isLocationLocked) Icons.Default.CheckCircle else Icons.Default.Warning,
+                            contentDescription = "GPS Status",
+                            tint = if (isLocationLocked) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(if (isLocationLocked) "GPS Locked" else "Waiting for GPS Lock...", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+
+                    // Map Status
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = if (uiState.isMapCached) Icons.Default.CheckCircle else Icons.Default.Warning,
+                            contentDescription = "Cache Status",
+                            tint = if (uiState.isMapCached) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Show instructions if missing, progress if downloading, or success if done
+                        val mapStatusText = when {
+                            uiState.isMapCached -> "Wilderness Map Cached"
+                            uiState.isMapDownloading -> "Downloading Map... ${uiState.mapDownloadProgress}%"
+                            else -> "Map not cached. Go to Map Tab to download."
                         }
 
-                        // Step 2: Download Map
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = if (isMapCached) Icons.Default.CheckCircle else Icons.Default.Warning,
-                                    contentDescription = "Cache Status",
-                                    tint = if (isMapCached) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Cache 30km Radius", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-
-                            Button(
-                                onClick = {
-                                    if (isLocationLocked && uiState.isOnline) {
-                                        coroutineScope.launch {
-                                            isDownloading = true
-
-                                            // Calculate 30km Bounding Box
-                                            val boundingBox = BoundingBox(
-                                                currentLat + 0.27, currentLng + 0.27, currentLat - 0.27, currentLng - 0.27
-                                            )
-                                            val mapView = MapView(context)
-                                            mapView.setTileSource(TileSourceFactory.MAPNIK)
-                                            val cacheManager = CacheManager(mapView)
-
-                                            // --- HEADLESS DOWNLOAD FIX ---
-                                            cacheManager.downloadAreaAsyncNoUI(context, boundingBox, 10, 15, object : CacheManager.CacheManagerCallback {
-                                                override fun onTaskComplete() {
-                                                    isDownloading = false
-                                                    isMapCached = true
-                                                    Toast.makeText(context, "Wilderness Map Ready!", Toast.LENGTH_SHORT).show()
-                                                }
-                                                override fun onTaskFailed(errors: Int) {
-                                                    isDownloading = false
-                                                    Toast.makeText(context, "Download failed.", Toast.LENGTH_SHORT).show()
-                                                }
-                                                override fun updateProgress(progress: Int, currentZoomLevel: Int, zoomMin: Int, zoomMax: Int) {
-                                                    downloadProgress = progress
-                                                }
-                                                override fun downloadStarted() {}
-                                                override fun setPossibleTilesInArea(total: Int) {}
-                                            })
-                                        }
-                                    } else if (!uiState.isOnline) {
-                                        Toast.makeText(context, "Connect to internet to download.", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Toast.makeText(context, "Waiting for GPS lock...", Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                                enabled = !isDownloading && isLocationLocked,
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                            ) {
-                                Icon(Icons.Default.CloudDownload, contentDescription = "Download", modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Download")
-                            }
-                        }
-
-                        if (isDownloading) {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), progress = { downloadProgress / 100f }, color = MaterialTheme.colorScheme.primary)
-                            Text("Downloading tiles: $downloadProgress%", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
-                        }
+                        Text(mapStatusText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
 
-            // --- Warning Banner ---
             if (showLocationWarning) {
                 LocationWarningBanner(onDismiss = { showLocationWarning = false })
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // --- Theme Aware Data Containers ---
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                DashboardCard(
-                    title = "Location",
-                    value = uiState.locationText,
-                    icon = Icons.Default.LocationOn,
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-
-                DashboardCard(
-                    title = "Weather",
-                    value = uiState.weatherText,
-                    icon = Icons.Default.Cloud,
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-
-                DashboardCard(
-                    title = "Risk Level",
-                    value = uiState.riskLevel,
-                    icon = Icons.Default.Warning,
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                )
+                DashboardCard(title = "Location", value = uiState.locationText, icon = Icons.Default.LocationOn, containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
+                DashboardCard(title = "Weather", value = uiState.weatherText, icon = Icons.Default.Cloud, containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
+                DashboardCard(title = "Risk Level", value = uiState.riskLevel, icon = Icons.Default.Warning, containerColor = MaterialTheme.colorScheme.tertiaryContainer, contentColor = MaterialTheme.colorScheme.onTertiaryContainer)
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- Action Buttons ---
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Button(
                     onClick = { navController.navigate("camera") },
                     modifier = Modifier.weight(1f).height(56.dp),
@@ -282,9 +170,8 @@ fun DashboardScreen(
                     Icon(Icons.Default.CameraAlt, contentDescription = "Camera", modifier = Modifier.padding(end = 8.dp))
                     Text("Camera")
                 }
-
                 Button(
-                    onClick = { showLocationWarning = true }, // Simulated failure
+                    onClick = { showLocationWarning = true },
                     modifier = Modifier.weight(1f).height(56.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(12.dp)
@@ -301,23 +188,12 @@ fun DashboardScreen(
 @Composable
 fun DashboardCard(title: String, value: String, icon: ImageVector, containerColor: Color, contentColor: Color) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(100.dp),
+        modifier = Modifier.fillMaxWidth().height(100.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor, contentColor = contentColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(40.dp)
-            )
+        Row(modifier = Modifier.fillMaxSize().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(40.dp))
             Spacer(modifier = Modifier.width(16.dp))
             Column {
                 Text(text = title, style = MaterialTheme.typography.titleMedium)
@@ -330,18 +206,10 @@ fun DashboardCard(title: String, value: String, icon: ImageVector, containerColo
 @Composable
 fun LocationWarningBanner(onDismiss: () -> Unit) {
     Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer,
-            contentColor = MaterialTheme.colorScheme.onErrorContainer
-        ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Warning, contentDescription = "Warning Icon")
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
