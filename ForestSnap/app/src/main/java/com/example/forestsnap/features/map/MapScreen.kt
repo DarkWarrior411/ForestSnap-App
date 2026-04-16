@@ -24,6 +24,17 @@ import org.osmdroid.views.overlay.compass.InternalCompassOrientationProvider
 
 @Composable
 fun MapScreen(viewModel: DashboardViewModel) {
+    val mapPins by viewModel.mapPins.collectAsState()
+
+// Iterate through the pins to draw them on your map
+mapPins.forEach { pin ->
+    // Example: If using Google Maps Compose
+    Marker(
+        state = MarkerState(position = LatLng(pin.latitude, pin.longitude)),
+        title = "Risk: ${pin.final_fire_risk_percent}%",
+        snippet = "Fuel Load: ${pin.fuel_load_score}% | Temp: ${pin.temperature_c}°C"
+    )
+}
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 

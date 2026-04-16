@@ -10,9 +10,12 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.forestsnap.data.remote.HistoryResponse
+import com.example.forestsnap.data.remote.NetworkModule
 import com.example.forestsnap.data.remote.WeatherService
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -28,12 +31,14 @@ import kotlinx.coroutines.launch
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
+// 1. Added mapPins to your core UI State
 data class DashboardUiState(
     val isOnline: Boolean = true,
     val locationText: String = "Fetching GPS...",
     val weatherText: String = "Loading...",
     val riskLevel: String = "Low",
-    val isRefreshing: Boolean = false
+    val isRefreshing: Boolean = false,
+    val mapPins: List<HistoryResponse> = emptyList() // Holds your server data
 )
 
 class DashboardViewModel(application: Application) : AndroidViewModel(application) {
@@ -44,48 +49,66 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     private val fusedLocationClient = LocationServices.getFusedLocationProviderClient(application)
     private val connectivityManager = application.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
+    // Client-side weather for the dashboard display
     private val weatherApi = Retrofit.Builder()
         .baseUrl("https://api.open-meteo.com/")
         .addConverterFactory(GsonConverterFactory.create())
         .build()
         .create(WeatherService::class.java)
 
-    // NEW: Job to hold our auto-refresh loop
     private var autoRefreshJob: Job? = null
 
     init {
         monitorNetworkConnection()
-        refreshData() // Do an initial fetch immediately
-        startAutoRefresh() // Start the silent background loop
+        refreshData() // Initial fetch
+        startAutoRefresh() 
     }
 
-    // --- NEW: The Auto-Refresh Loop ---
     private fun startAutoRefresh() {
-        autoRefreshJob?.cancel() // Cancel any existing loop just in case
+        autoRefreshJob?.cancel() 
         autoRefreshJob = viewModelScope.launch {
             while (isActive) {
-                // Wait for 5 minutes (300,000 milliseconds) before silently fetching again
-                delay(300_000)
-
-                // Silently fetch data without triggering the UI loading spinner
+                delay(300_000) // 5 minutes
+                // Silently update both location/weather AND server data
                 fetchLocation()
+                fetchServerHistory()
             }
         }
     }
 
-    // Handle Manual Pull-to-Refresh
     fun refreshData() {
         viewModelScope.launch {
-            // This one shows the loading spinner because the user manually requested it
-            _uiState.update { it.copy(isRefreshing = true, locationText = "Fetching GPS...", weatherText = "Updating...") }
+            _uiState.update { 
+                it.copy(
+                    isRefreshing = true, 
+                    locationText = "Fetching GPS...", 
+                    weatherText = "Updating..."
+                ) 
+            }
 
+            // Fire off both network requests concurrently
             fetchLocation()
+            fetchServerHistory()
 
-            delay(1000) // Minimum delay so the spinner doesn't flash too quickly
+            delay(1000) 
             _uiState.update { it.copy(isRefreshing = false) }
-
-            // Restart the auto-refresh timer so it doesn't double-fire right after a manual pull
             startAutoRefresh()
+        }
+    }
+
+    // 2. NEW: Function to pull the seeded database records from FastAPI
+    private fun fetchServerHistory() {
+        viewModelScope.launch {
+            try {
+                // If offline, don't attempt the fetch
+                if (!_uiState.value.isOnline) return@launch
+
+                val history = NetworkModule.api.getHistoricalData()
+                _uiState.update { it.copy(mapPins = history) }
+                Log.i("DashboardViewModel", "Successfully fetched ${history.size} map pins.")
+            } catch (e: Exception) {
+                Log.e("DashboardViewModel", "Failed to fetch map pins: ${e.message}")
+            }
         }
     }
 
@@ -111,7 +134,6 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
                     fetchRealWeather(lat, lng)
                 } else {
-                    // Only update error text if we don't already have valid coordinates
                     if (_uiState.value.locationText.contains("Fetching")) {
                         _uiState.update { it.copy(locationText = "Location unavailable") }
                     }
@@ -135,7 +157,6 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
                 _uiState.update { it.copy(weatherText = "$temp°C - $description") }
             } catch (e: Exception) {
-                // If the auto-refresh fails because they walked offline, just show N/A
                 _uiState.update { it.copy(weatherText = "Offline Mode - Weather N/A") }
             }
         }
@@ -149,8 +170,8 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         val networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 _uiState.update { it.copy(isOnline = true) }
-                // Optional: If they reconnect to the internet, immediately fetch the weather!
-                startAutoRefresh()
+                // Reconnected? Immediately fetch map pins and location!
+                refreshData() 
             }
 
             override fun onLost(network: Network) {
