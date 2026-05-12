@@ -33,10 +33,10 @@ export function AppPromoPage() {
           ))}
         </div>
 
-        <button className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-400 text-[#022c22] font-bold px-8 py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+        <a href="/ForestSnap.apk" download className="inline-flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-400 text-[#022c22] font-bold px-8 py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)]">
           <Download size={20} />
           <span>Download APK</span>
-        </button>
+        </a>
       </motion.div>
       
       <motion.div
