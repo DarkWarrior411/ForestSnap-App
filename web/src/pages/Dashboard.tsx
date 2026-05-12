@@ -194,8 +194,8 @@ export function Dashboard() {
         <div className="flex-1 lg:flex-[1] flex flex-col min-h-0 bg-[#064e3b]/30 rounded-2xl border border-[#065f46]">
           {activeTab === "feed" ? (
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              <AnimatePresence>
-                {filteredRecords.map((record) => (
+              <AnimatePresence mode="popLayout" initial={false}>
+                {filteredRecords.slice(0, 50).map((record) => (
                   <AnalysisCard
                     key={record.id}
                     record={record}
