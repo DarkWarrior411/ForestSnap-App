@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, LayersControl } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { AnalysisRecord } from "../types";
@@ -47,10 +47,33 @@ export const MapView: React.FC<MapProps> = ({ records, selectedRecordId, onMarke
         style={{ height: "100%", width: "100%" }}
         className="z-0"
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" // Dark theme map
-        />
+        <LayersControl position="topright">
+          <LayersControl.BaseLayer checked name="Dark Map">
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Light Map">
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Satellite">
+            <TileLayer
+              attribution='&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Outdoors">
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+          </LayersControl.BaseLayer>
+        </LayersControl>
+        
         {records.map((record) => (
           <Marker
             key={record.id}

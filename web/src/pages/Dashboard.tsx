@@ -3,7 +3,7 @@ import { fetchHistory } from "../api";
 import type { AnalysisRecord } from "../types";
 import { MapView } from "../components/Map";
 import { AnalysisCard } from "../components/AnalysisCard";
-import { RefreshCw, Download, Filter, Activity, List } from "lucide-react";
+import { RefreshCw, Download, Filter, Activity, List, Clock, Thermometer } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
 
@@ -13,6 +13,8 @@ export function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"feed" | "analytics">("feed");
   const [filterRisk, setFilterRisk] = useState<"All" | "Low" | "Moderate" | "High" | "Critical">("All");
+  const [filterTime, setFilterTime] = useState<"All" | "24h" | "7d">("All");
+  const [filterWeather, setFilterWeather] = useState<"All" | "ExtremeHeat" | "HighWind">("All");
   const [showToast, setShowToast] = useState(false);
 
   const loadData = async () => {
@@ -37,14 +39,28 @@ export function Dashboard() {
 
   const filteredRecords = useMemo(() => {
     return records.filter((r) => {
-      if (filterRisk === "All") return true;
-      if (filterRisk === "Low") return r.final_fire_risk_percent < 25;
-      if (filterRisk === "Moderate") return r.final_fire_risk_percent >= 25 && r.final_fire_risk_percent < 50;
-      if (filterRisk === "High") return r.final_fire_risk_percent >= 50 && r.final_fire_risk_percent < 75;
-      if (filterRisk === "Critical") return r.final_fire_risk_percent >= 75;
+      // Risk Filter
+      if (filterRisk === "Low" && r.final_fire_risk_percent >= 25) return false;
+      if (filterRisk === "Moderate" && (r.final_fire_risk_percent < 25 || r.final_fire_risk_percent >= 50)) return false;
+      if (filterRisk === "High" && (r.final_fire_risk_percent < 50 || r.final_fire_risk_percent >= 75)) return false;
+      if (filterRisk === "Critical" && r.final_fire_risk_percent < 75) return false;
+
+      // Time Filter
+      if (filterTime !== "All") {
+        const recordDate = new Date(r.timestamp).getTime();
+        const now = new Date().getTime();
+        const diffHours = (now - recordDate) / (1000 * 60 * 60);
+        if (filterTime === "24h" && diffHours > 24) return false;
+        if (filterTime === "7d" && diffHours > 24 * 7) return false;
+      }
+
+      // Weather Filter
+      if (filterWeather === "ExtremeHeat" && r.temperature_c < 35) return false;
+      if (filterWeather === "HighWind" && r.wind_speed_ms < 8) return false;
+
       return true;
     });
-  }, [records, filterRisk]);
+  }, [records, filterRisk, filterTime, filterWeather]);
 
   const exportCSV = () => {
     if (filteredRecords.length === 0) return;
@@ -77,7 +93,7 @@ export function Dashboard() {
   }, [filteredRecords]);
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden p-6 gap-6">
+    <div className="flex-1 flex flex-col min-h-0 h-full p-6 gap-6">
       {/* Toast Notification */}
       <AnimatePresence>
         {showToast && (
@@ -94,13 +110,13 @@ export function Dashboard() {
       </AnimatePresence>
 
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[#064e3b]/50 p-4 rounded-2xl border border-[#065f46]">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-[#064e3b]/50 p-4 rounded-2xl border border-[#065f46]">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center space-x-2 bg-[#022c22] px-3 py-1.5 rounded-lg border border-[#065f46]">
             <Filter size={16} className="text-emerald-400" />
             <select
               value={filterRisk}
-              onChange={(e) => setFilterRisk(e.target.value as "All" | "Low" | "Moderate" | "High" | "Critical")}
+              onChange={(e) => setFilterRisk(e.target.value as any)}
               className="bg-transparent text-emerald-50 text-sm outline-none cursor-pointer"
             >
               <option value="All">All Risks</option>
@@ -111,7 +127,33 @@ export function Dashboard() {
             </select>
           </div>
           
-          <div className="flex space-x-1 bg-[#022c22] p-1 rounded-lg border border-[#065f46]">
+          <div className="flex items-center space-x-2 bg-[#022c22] px-3 py-1.5 rounded-lg border border-[#065f46]">
+            <Clock size={16} className="text-emerald-400" />
+            <select
+              value={filterTime}
+              onChange={(e) => setFilterTime(e.target.value as any)}
+              className="bg-transparent text-emerald-50 text-sm outline-none cursor-pointer"
+            >
+              <option value="All">All Time</option>
+              <option value="24h">Last 24 Hours</option>
+              <option value="7d">Last 7 Days</option>
+            </select>
+          </div>
+
+          <div className="flex items-center space-x-2 bg-[#022c22] px-3 py-1.5 rounded-lg border border-[#065f46]">
+            <Thermometer size={16} className="text-emerald-400" />
+            <select
+              value={filterWeather}
+              onChange={(e) => setFilterWeather(e.target.value as any)}
+              className="bg-transparent text-emerald-50 text-sm outline-none cursor-pointer"
+            >
+              <option value="All">Any Weather</option>
+              <option value="ExtremeHeat">Extreme Heat (&gt;35°C)</option>
+              <option value="HighWind">High Wind (&gt;8m/s)</option>
+            </select>
+          </div>
+          
+          <div className="flex space-x-1 bg-[#022c22] p-1 rounded-lg border border-[#065f46] ml-auto xl:ml-2">
             <button
               onClick={() => setActiveTab("feed")}
               className={`px-3 py-1.5 rounded-md text-sm font-medium flex items-center space-x-1 transition-colors ${activeTab === "feed" ? "bg-[#064e3b] text-emerald-300" : "text-emerald-100/60 hover:text-emerald-100"}`}
@@ -127,7 +169,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 w-full xl:w-auto justify-end">
           <button
             onClick={exportCSV}
             className="flex items-center space-x-2 px-4 py-2 bg-[#022c22] hover:bg-[#022c22]/80 border border-[#065f46] rounded-lg text-sm font-medium transition-colors text-emerald-100"
@@ -147,9 +189,9 @@ export function Dashboard() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
         {/* Left Column */}
-        <div className="flex flex-col h-full overflow-hidden bg-[#064e3b]/30 rounded-2xl border border-[#065f46]">
+        <div className="flex-1 lg:flex-[1] flex flex-col min-h-0 bg-[#064e3b]/30 rounded-2xl border border-[#065f46]">
           {activeTab === "feed" ? (
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               <AnimatePresence>
@@ -169,7 +211,7 @@ export function Dashboard() {
               )}
             </div>
           ) : (
-            <div className="flex-1 p-6 flex flex-col items-center justify-center">
+            <div className="flex-1 p-6 flex flex-col items-center justify-center min-h-[300px]">
               <h3 className="text-xl font-bold mb-6 text-emerald-100">Risk Distribution</h3>
               <div className="w-full h-64">
                 <ResponsiveContainer width="100%" height="100%">
@@ -193,7 +235,7 @@ export function Dashboard() {
         </div>
 
         {/* Right Column: Map */}
-        <div className="h-[40vh] lg:h-full rounded-2xl overflow-hidden border border-[#065f46]">
+        <div className="flex-[0.8] min-h-[300px] lg:min-h-0 lg:flex-[1] rounded-2xl overflow-hidden border border-[#065f46]">
           <MapView
             records={filteredRecords}
             selectedRecordId={selectedRecordId}

@@ -12,7 +12,7 @@ export function Layout() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#022c22] text-[#ecfdf5] font-sans flex flex-col">
+    <div className="h-screen bg-[#022c22] text-[#ecfdf5] font-sans flex flex-col">
       {/* Navigation Header */}
       <header className="px-6 py-4 border-b border-[#064e3b] bg-[#022c22]/80 backdrop-blur-md sticky top-0 z-50 flex justify-between items-center">
         <Link to="/" className="flex items-center space-x-3 group">
@@ -46,7 +46,7 @@ export function Layout() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col relative overflow-hidden">
+      <main className="flex-1 flex flex-col relative min-h-0 overflow-y-auto overflow-x-hidden">
         <Outlet />
       </main>
     </div>
