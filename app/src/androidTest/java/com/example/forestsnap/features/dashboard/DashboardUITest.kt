@@ -1,0 +1,29 @@
+package com.example.forestsnap.features.dashboard
+
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.assertIsDisplayed
+import com.example.forestsnap.MainActivity
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
+import org.junit.Rule
+import org.junit.Test
+
+@HiltAndroidTest
+class DashboardUITest {
+
+    @get:Rule(order = 0)
+    var hiltRule = HiltAndroidRule(this)
+
+    @get:Rule(order = 1)
+    val composeTestRule = createAndroidComposeRule<MainActivity>()
+
+    @Test
+    fun appLaunchesAndShowsDashboard() {
+        // Simple sanity check that the main activity loads the dashboard screen
+        // "Camera" is the text on the camera button in the dashboard
+        composeTestRule.onNodeWithText("Camera").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Location").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Risk Level").assertIsDisplayed()
+    }
+}

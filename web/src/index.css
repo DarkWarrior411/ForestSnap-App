@@ -1,0 +1,39 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+@theme {
+  --color-primary: #10b981;
+  --color-primary-dark: #059669;
+  --color-background: #022c22; /* emerald-950 */
+  --color-surface: #064e3b; /* emerald-900 */
+  --color-surface-hover: #065f46; /* emerald-800 */
+  --color-text: #ecfdf5; /* emerald-50 */
+  --color-text-muted: #a7f3d0; /* emerald-200 */
+  
+  --color-risk-low: #34d399; /* emerald-400 */
+  --color-risk-moderate: #fbbf24; /* amber-400 */
+  --color-risk-high: #f97316; /* orange-500 */
+  --color-risk-critical: #ef4444; /* red-500 */
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+/* Custom scrollbar for webkit */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-background);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-hover);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
