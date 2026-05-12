@@ -46,7 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import coil.compose.AsyncImage
@@ -57,7 +57,7 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun SyncQueueScreen(viewModel: SyncQueueViewModel = viewModel()) {
+fun SyncQueueScreen(viewModel: SyncQueueViewModel = hiltViewModel()) {
     val queue by viewModel.pendingQueue.collectAsState()
     val context = LocalContext.current
     var selectedImagePath by remember { mutableStateOf<String?>(null) }

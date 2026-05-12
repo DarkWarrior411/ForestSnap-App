@@ -110,21 +110,29 @@ fun MapScreen(viewModel: DashboardViewModel) {
                                             15, 
                                             object : CacheManager.CacheManagerCallback {
                                                 override fun onTaskComplete() {
-                                                    viewModel.updateMapCacheStatus(false, 100, true)
-                                                    Toast.makeText(context, "Map Downloaded!", Toast.LENGTH_SHORT).show()
+                                                    coroutineScope.launch {
+                                                        viewModel.updateMapCacheStatus(false, 100, true)
+                                                        Toast.makeText(context, "Map Downloaded!", Toast.LENGTH_SHORT).show()
+                                                    }
                                                 }
 
                                                 override fun onTaskFailed(errors: Int) {
-                                                    viewModel.updateMapCacheStatus(false, 0, false)
-                                                    Toast.makeText(context, "Download failed", Toast.LENGTH_SHORT).show()
+                                                    coroutineScope.launch {
+                                                        viewModel.updateMapCacheStatus(false, 0, false)
+                                                        Toast.makeText(context, "Download failed", Toast.LENGTH_SHORT).show()
+                                                    }
                                                 }
 
                                                 override fun updateProgress(progress: Int, currentZoomLevel: Int, zoomMin: Int, zoomMax: Int) {
-                                                    viewModel.updateMapCacheStatus(true, progress, false)
+                                                    coroutineScope.launch {
+                                                        viewModel.updateMapCacheStatus(true, progress, false)
+                                                    }
                                                 }
 
                                                 override fun downloadStarted() {
-                                                    viewModel.updateMapCacheStatus(true, 0, false)
+                                                    coroutineScope.launch {
+                                                        viewModel.updateMapCacheStatus(true, 0, false)
+                                                    }
                                                 }
 
                                                 override fun setPossibleTilesInArea(total: Int) {}

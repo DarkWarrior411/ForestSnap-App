@@ -52,7 +52,7 @@ object AppModule {
     @Singleton
     fun provideForestSnapApi(): ForestSnapApi {
         return Retrofit.Builder()
-            .baseUrl("https://api.forestsnap.com/") // Replaced hardcoded IP
+            .baseUrl("http://10.0.2.2:8000/") // Local development server from emulator
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(ForestSnapApi::class.java)
