@@ -1,8 +1,17 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, Activity, Globe, Cpu } from "lucide-react";
+import { 
+  ArrowRight, 
+  Activity, 
+  Globe, 
+  Cpu, 
+  Smartphone, 
+  Map, 
+  Trees 
+} from "lucide-react";
 import { motion } from "framer-motion";
 
 export function LandingPage() {
+  // --- REVERTED TO ORIGINAL FEATURES ---
   const features = [
     {
       icon: Cpu,
@@ -21,11 +30,34 @@ export function LandingPage() {
     },
   ];
 
+  // --- KEPT THE UPDATED PIPELINE TO REFLECT YOUR ARCHITECTURE ---
+  const pipelineSteps = [
+    {
+      icon: Smartphone,
+      title: "1. Capture & Validate",
+      desc: "Rangers capture ecological photos. On-device AI instantly drops blurry images, temporarily storing only high-quality data.",
+    },
+    {
+      icon: Activity,
+      title: "2. Auto-Sync",
+      desc: "Upon detecting a connection, the app forwards the queued images to the cloud server and deletes local files to free up space.",
+    },
+    {
+      icon: Map,
+      title: "3. Cloud Analysis",
+      desc: "Heavy cloud models calculate risk factors from the synced data, mapping predictive ecosystem health directly to the Command Center.",
+    }
+  ];
+
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar bg-background text-text-main transition-colors duration-300">
-      {}
-      <section className="relative px-6 pt-32 pb-20 md:pt-48 md:pb-32 flex flex-col items-center text-center overflow-hidden">
-        {}
+      
+      {/* --- HERO SECTION --- */}
+      <section className="relative px-6 pt-24 pb-24 md:pt-32 md:pb-40 flex flex-col items-center text-center overflow-hidden">
+        {/* Subtle grid background pattern */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
+        
+        {/* Glowing orb effect */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-[400px] bg-primary/20 blur-[120px] rounded-full pointer-events-none opacity-50 dark:opacity-100" />
 
         <motion.div
@@ -70,8 +102,8 @@ export function LandingPage() {
         </motion.div>
       </section>
 
-      {}
-      <section className="px-6 py-24 bg-surface/30 border-y border-border-main">
+      {/* --- FEATURES SECTION (Engineered for the field) --- */}
+      <section className="px-6 py-24 bg-surface/30 border-t border-border-main">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">
             <h2 className="text-3xl md:text-5xl font-black mb-6">
@@ -109,6 +141,72 @@ export function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* --- HOW IT WORKS (PIPELINE) SECTION --- */}
+      <section className="px-6 py-24 border-t border-border-main relative overflow-hidden">
+        <div className="max-w-7xl mx-auto relative z-10">
+          <div className="mb-16 text-center md:text-left">
+            <h2 className="text-3xl md:text-5xl font-black mb-4">
+              The Conservation Pipeline
+            </h2>
+            <p className="text-text-muted text-lg max-w-2xl">
+              From boots on the ground to high-level strategic overviews, ForestSnap connects the dots.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
+            {/* Connecting line for desktop */}
+            <div className="hidden md:block absolute top-12 left-[15%] right-[15%] h-[2px] bg-gradient-to-r from-primary/10 via-primary/50 to-primary/10" />
+
+            {pipelineSteps.map((step, idx) => {
+              const Icon = step.icon;
+              return (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  whileHover={{ scale: 1.05 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: idx * 0.2, duration: 0.3 }}
+                  className="relative z-10 flex flex-col items-center text-center cursor-pointer group"
+                >
+                  <div className="w-24 h-24 bg-background border-4 border-surface rounded-full flex items-center justify-center text-primary mb-6 shadow-xl z-10 transition-all duration-300 group-hover:bg-primary/10 group-hover:border-primary/50 group-hover:shadow-primary/20">
+                    <Icon size={40} className="transition-transform duration-300 group-hover:scale-110" />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-4">{step.title}</h3>
+                  <p className="text-text-muted leading-relaxed">
+                    {step.desc}
+                  </p>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* --- FOOTER SECTION --- */}
+      <footer className="bg-surface/50 border-t border-border-main px-6 py-12 mt-10">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center space-x-3 text-text-main">
+            <div className="p-2 bg-primary/10 rounded-xl text-primary">
+              <Trees size={24} />
+            </div>
+            <span className="text-xl font-bold tracking-tight">ForestSnap</span>
+          </div>
+          
+          <div className="flex space-x-6 text-sm font-medium text-text-muted">
+            <Link to="/about" className="hover:text-primary transition-colors">About Us</Link>
+            <Link to="/app" className="hover:text-primary transition-colors">Download App</Link>
+            <a href="#" className="hover:text-primary transition-colors">Documentation</a>
+            <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
+          </div>
+
+          <div className="text-text-muted text-sm">
+            &copy; {new Date().getFullYear()} ForestSnap. All rights reserved.
+          </div>
+        </div>
+      </footer>
+
     </div>
   );
 }
