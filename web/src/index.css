@@ -1,39 +1,48 @@
 @import "tailwindcss";
-@import "leaflet/dist/leaflet.css";
+
+:root {
+  /* LIGHT MODE (Default) */
+  --bg-color: #f8fafc;
+  --surface-color: #ffffff;
+  --surface-border: #e2e8f0;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --accent-primary: #10b981;
+}
+
+.dark {
+  /* DARK MODE */
+  --bg-color: #022c22;
+  --surface-color: #064e3b;
+  --surface-border: #065f46;
+  --text-main: #ecfdf5;
+  --text-muted: #a7f3d0;
+  --accent-primary: #10b981;
+}
 
 @theme {
-  --color-primary: #10b981;
-  --color-primary-dark: #059669;
-  --color-background: #022c22; /* emerald-950 */
-  --color-surface: #064e3b; /* emerald-900 */
-  --color-surface-hover: #065f46; /* emerald-800 */
-  --color-text: #ecfdf5; /* emerald-50 */
-  --color-text-muted: #a7f3d0; /* emerald-200 */
-  
-  --color-risk-low: #34d399; /* emerald-400 */
-  --color-risk-moderate: #fbbf24; /* amber-400 */
-  --color-risk-high: #f97316; /* orange-500 */
-  --color-risk-critical: #ef4444; /* red-500 */
+  --color-background: var(--bg-color);
+  --color-surface: var(--surface-color);
+  --color-border-main: var(--surface-border);
+  --color-text-main: var(--text-main);
+  --color-text-muted: var(--text-muted);
+  --color-primary: var(--accent-primary);
 }
 
 body {
   background-color: var(--color-background);
-  color: var(--color-text);
+  color: var(--color-text-main);
   margin: 0;
-  font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
 }
 
-/* Custom scrollbar for webkit */
-::-webkit-scrollbar {
-  width: 8px;
-}
-::-webkit-scrollbar-track {
-  background: var(--color-background);
-}
-::-webkit-scrollbar-thumb {
-  background: var(--color-surface-hover);
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-primary);
+/* Reusable UI Utilities using dynamic variables */
+@layer components {
+  .glass-panel {
+    @apply bg-surface/50 backdrop-blur-xl border border-border-main shadow-xl;
+  }
 }

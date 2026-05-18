@@ -28,7 +28,7 @@ class LocationHelper @Inject constructor(
             context,
             Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
-        
+
         val hasCoarseLocation = ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.ACCESS_COARSE_LOCATION

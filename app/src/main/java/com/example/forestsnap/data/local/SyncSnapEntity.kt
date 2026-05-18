@@ -7,13 +7,20 @@ import androidx.room.PrimaryKey
 data class SyncSnapEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val photoPath: String,
-    val latitude: Double,
-    val longitude: Double,
+    val latitude: Double?,
+    val longitude: Double?,
     val timestamp: Long,
     val isSynced: Boolean = false,
     val isSyncing: Boolean = false,
+    val syncStatus: String? = null,
+    val lastAttemptedAt: Long? = null,
 
     val fireRiskPercent: Double? = null,
     val fuelLoadScore: Double? = null,
-    val drynessTier: Int? = null
+    val drynessTier: Int? = null,
+
+    val temperatureC: Double? = null,
+    val humidityPercent: Int? = null,
+    val windSpeedMs: Double? = null,
+    val windDirectionDeg: Int? = null
 )

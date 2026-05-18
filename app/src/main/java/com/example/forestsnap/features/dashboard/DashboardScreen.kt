@@ -3,6 +3,12 @@ package com.example.forestsnap.features.dashboard
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,6 +36,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -48,25 +55,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
-import androidx.work.WorkInfo
-import androidx.work.WorkManager
-import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.flow.map
-import java.util.UUID
+import com.example.forestsnap.core.utils.extractExifLocation
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
-    navController: NavController,
+    onNavigateToCamera: () -> Unit,
+    onNavigateToLocationPicker: (String) -> Unit,
     viewModel: DashboardViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showLocationWarning by remember { mutableStateOf(false) }
     val pullRefreshState = rememberPullToRefreshState()
+    val context = LocalContext.current
 
     val isLocationLocked = !uiState.locationText.contains("Fetching") &&
             !uiState.locationText.contains("Required") &&
@@ -75,28 +81,19 @@ fun DashboardScreen(
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        val fineLocationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
-        val coarseLocationGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
-        if (fineLocationGranted || coarseLocationGranted) {
-            viewModel.refreshData()
-        }
+        if (permissions.values.any { it }) viewModel.refreshData()
     }
 
-    val context = LocalContext.current
-    
-    // Listen to the CloudSyncWorker's status
-    val workInfos by remember {
-        WorkManager.getInstance(context).getWorkInfosForUniqueWorkFlow("AutoCloudSync")
-    }.collectAsState(initial = emptyList())
-
-    // Keep track of the last processed job to prevent infinite refresh loops
-    var lastProcessedWorkId by remember { mutableStateOf<UUID?>(null) }
-
-    LaunchedEffect(workInfos) {
-        val workInfo = workInfos.firstOrNull()
-        if (workInfo != null && workInfo.state == WorkInfo.State.SUCCEEDED && workInfo.id != lastProcessedWorkId) {
-            lastProcessedWorkId = workInfo.id
-            viewModel.refreshData() // Trigger the UI update!
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            val location = extractExifLocation(context, uri)
+            if (location != null) {
+                viewModel.processGalleryPhoto(context, uri, location.first, location.second)
+            } else {
+                onNavigateToLocationPicker(uri.toString())
+            }
         }
     }
 
@@ -127,61 +124,99 @@ fun DashboardScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp, top = 8.dp),
-                horizontalArrangement = Arrangement.End,
+                    .padding(bottom = 24.dp, top = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .clip(CircleShape)
-                        .background(if (uiState.isOnline) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (uiState.isOnline) "Online" else "Offline",
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = "Field Dashboard",
+                    style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = if (uiState.isOnline) Color(0xFF2E7D32) else MaterialTheme.colorScheme.error
+                    color = MaterialTheme.colorScheme.onBackground
                 )
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    PulsingStatusDot(isLocked = uiState.isOnline)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (uiState.isOnline) "ONLINE" else "OFFLINE",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Black,
+                        color = if (uiState.isOnline) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                    )
+                }
             }
 
-            Card(
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Button(
+                    onClick = onNavigateToCamera,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(72.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.CameraAlt,
+                            contentDescription = "Camera",
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("Capture", fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Button(
+                    onClick = { galleryLauncher.launch("image/*") },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(72.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.PhotoLibrary,
+                            contentDescription = "Gallery",
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("Upload", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            ElevatedCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "Pre-Trek Status",
+                        "Hardware Telemetry",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.primary
                     )
-                    Text(
-                        "Ensure both are green before going off-grid.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        modifier = Modifier.padding(bottom = 12.dp)
                     ) {
-                        Icon(
-                            imageVector = if (isLocationLocked) Icons.Default.CheckCircle else Icons.Default.Warning,
-                            contentDescription = "GPS Status",
-                            tint = if (isLocationLocked) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        PulsingStatusDot(isLocked = isLocationLocked)
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            if (isLocationLocked) "GPS Locked" else "Waiting for GPS Lock...",
+                            if (isLocationLocked) "GPS Coordinates Locked" else "Acquiring GPS Satellites...",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            fontWeight = if (isLocationLocked) FontWeight.Bold else FontWeight.Normal
                         )
                     }
 
@@ -190,82 +225,83 @@ fun DashboardScreen(
                             imageVector = if (uiState.isMapCached) Icons.Default.CheckCircle else Icons.Default.Warning,
                             contentDescription = "Cache Status",
                             tint = if (uiState.isMapCached) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        val mapStatusText = when {
-                            uiState.isMapCached -> "Wilderness Map Cached"
-                            uiState.isMapDownloading -> "Downloading Map... ${uiState.mapDownloadProgress}%"
-                            else -> "Map not cached. Go to Map Tab to download."
-                        }
-
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            mapStatusText,
+                            if (uiState.isMapCached) "Wilderness Map Cached" else "Map not cached. Open Map Tab.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            fontWeight = if (uiState.isMapCached) FontWeight.Bold else FontWeight.Normal
                         )
                     }
                 }
             }
 
-            if (showLocationWarning) {
+            AnimatedVisibility(visible = showLocationWarning) {
                 LocationWarningBanner(onDismiss = { showLocationWarning = false })
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            Column(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                DashboardCard(
-                    title = "Location",
-                    value = uiState.locationText,
-                    icon = Icons.Default.LocationOn,
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
                 DashboardCard(
                     title = "Weather",
                     value = uiState.weatherText,
                     icon = Icons.Default.Cloud,
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.weight(1f)
                 )
                 DashboardCard(
                     title = "Risk Level",
                     value = uiState.riskLevel,
                     icon = Icons.Default.Warning,
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                    modifier = Modifier.weight(1f)
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Button(
-                    onClick = { navController.navigate("camera") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(
-                        Icons.Default.CameraAlt,
-                        contentDescription = "Camera",
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-                    Text("Camera")
-                }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
+            DashboardCard(
+                title = "Coordinates",
+                value = uiState.locationText,
+                icon = Icons.Default.LocationOn,
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
+}
+
+@Composable
+fun PulsingStatusDot(isLocked: Boolean) {
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlpha"
+    )
+
+    Box(
+        modifier = Modifier
+            .size(12.dp)
+            .clip(CircleShape)
+            .background(
+                if (isLocked) Color(0xFF4CAF50)
+                else MaterialTheme.colorScheme.error.copy(alpha = alpha)
+            )
+    )
 }
 
 @Composable
@@ -274,34 +310,40 @@ fun DashboardCard(
     value: String,
     icon: ImageVector,
     containerColor: Color,
-    contentColor: Color
+    contentColor: Color,
+    modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(100.dp),
-        colors = CardDefaults.cardColors(
+    ElevatedCard(
+        modifier = modifier.height(110.dp),
+        colors = CardDefaults.elevatedCardColors(
             containerColor = containerColor,
             contentColor = contentColor
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(16.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(40.dp))
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
-                Text(text = title, style = MaterialTheme.typography.titleMedium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = value,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold
+                    text = title,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = contentColor.copy(alpha = 0.8f)
                 )
             }
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Black,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 2
+            )
         }
     }
 }
@@ -330,7 +372,7 @@ fun LocationWarningBanner(onDismiss: () -> Unit) {
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
-                    "This image is missing required location data. Please try uploading another image.",
+                    "This image is missing required EXIF location data. Please try another.",
                     style = MaterialTheme.typography.bodySmall
                 )
             }

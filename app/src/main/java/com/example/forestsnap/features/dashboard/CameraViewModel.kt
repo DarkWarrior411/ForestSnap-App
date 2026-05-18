@@ -1,80 +1,167 @@
 package com.example.forestsnap.features.dashboard
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.forestsnap.core.utils.LocationHelper
 import com.example.forestsnap.core.utils.PreferenceManager
+import com.example.forestsnap.core.utils.compressPhotoFile
+import com.example.forestsnap.core.utils.isImageBlurry
 import com.example.forestsnap.data.local.SyncSnapEntity
 import com.example.forestsnap.data.repository.SyncSnapRepository
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.label.ImageLabeling
+import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.io.ByteArrayOutputStream
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
+import java.util.Calendar
 import javax.inject.Inject
 
 @HiltViewModel
 class CameraViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val repository: SyncSnapRepository,
     private val locationHelper: LocationHelper,
     private val preferenceManager: PreferenceManager
-) : ViewModel() {
+) : ViewModel(), SensorEventListener {
 
-    fun processAndSavePhoto(photoFile: File, onComplete: (Boolean, String?) -> Unit) {
-        viewModelScope.launch {
+    private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+    private val lightSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
+
+    private var currentLuxValue: Float = -1f
+
+    private val _uploadStatus = MutableStateFlow<String?>(null)
+    val uploadStatus: StateFlow<String?> = _uploadStatus.asStateFlow()
+
+    val isLocationReady: StateFlow<Boolean> = flow {
+        while (true) {
+            emit(locationHelper.getCurrentLocation() != null)
+            delay(2000)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    init {
+
+        lightSensor?.let {
+            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+        }
+    }
+
+    fun processAndSavePhotoOptimistically(photoFile: File) {
+        CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
             try {
-                val strictLocation = preferenceManager.strictLocationFlow.first()
-                val compressImage = preferenceManager.compressionFlow.first()
 
-                val location = locationHelper.getCurrentLocation()
-
-                if (strictLocation && location == null) {
-                    photoFile.delete()
-                    onComplete(false, "Strict Location enabled. GPS signal required.")
+                if (isImageBlurry(photoFile)) {
+                    rejectPhoto(photoFile, "Image too blurry. Please hold still.")
                     return@launch
                 }
 
-                val lat = location?.latitude ?: 0.0
-                val lon = location?.longitude ?: 0.0
+                val location = locationHelper.getCurrentLocation()
+                val strictLocation = preferenceManager.strictLocationFlow.first()
+                if (strictLocation && location == null) {
+                    rejectPhoto(photoFile, "GPS signal required for submission.")
+                    return@launch
+                }
 
-                if (compressImage) {
+                val hourOfDay = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+                val isDaytime = hourOfDay in 8..17
+                if (isDaytime && currentLuxValue in 0f..200f) {
+                    Log.w(
+                        "CameraViewModel",
+                        "Anti-Gaming Triggered: Lux is $currentLuxValue during daytime."
+                    )
+                    rejectPhoto(photoFile, "Environment too dim. Ensure you are outdoors.")
+                    return@launch
+                }
+
+                val isActuallyForest = verifyForestContent(photoFile)
+                if (!isActuallyForest) {
+                    Log.w("CameraViewModel", "Anti-Gaming Triggered: No nature detected in photo.")
+                    rejectPhoto(
+                        photoFile,
+                        "Validation failed: Image does not appear to be a forest."
+                    )
+                    return@launch
+                }
+
+                if (preferenceManager.compressionFlow.first()) {
                     compressPhotoFile(photoFile)
                 }
 
-                repository.insertSyncSnap(
-                    SyncSnapEntity(
-                        photoPath = photoFile.absolutePath,
-                        latitude = lat,
-                        longitude = lon,
-                        timestamp = System.currentTimeMillis()
+                withContext(NonCancellable) {
+                    repository.insertSyncSnap(
+                        SyncSnapEntity(
+                            photoPath = photoFile.absolutePath,
+                            latitude = location?.latitude,
+                            longitude = location?.longitude,
+                            timestamp = System.currentTimeMillis()
+                        )
                     )
-                )
+                }
+                _uploadStatus.value = "Snap queued for analysis!"
 
-                onComplete(true, null)
             } catch (e: Exception) {
-                photoFile.delete()
-                onComplete(false, "Error saving photo: ${e.message}")
+                rejectPhoto(photoFile, "Processing error occurred.")
             }
         }
     }
 
-    private fun compressPhotoFile(file: File) {
-        try {
-            val bitmap = BitmapFactory.decodeFile(file.absolutePath)
-            val bos = ByteArrayOutputStream()
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 70, bos) // 70% quality
-            val bitmapData = bos.toByteArray()
+    private suspend fun verifyForestContent(photoFile: File): Boolean {
+        return try {
+            val image = InputImage.fromFilePath(context, Uri.fromFile(photoFile))
+            val labeler = ImageLabeling.getClient(ImageLabelerOptions.DEFAULT_OPTIONS)
 
-            val fos = FileOutputStream(file)
-            fos.write(bitmapData)
-            fos.flush()
-            fos.close()
-            bitmap.recycle()
+            val labels = labeler.process(image).await()
+
+            val validNatureTags =
+                listOf("Tree", "Plant", "Forest", "Nature", "Wood", "Vegetation", "Outdoors")
+
+            labels.any { validNatureTags.contains(it.text) }
         } catch (e: Exception) {
-            e.printStackTrace() // If compression fails, we just keep the original
+            Log.e("CameraViewModel", "ML Kit failed: ${e.message}")
+            true
         }
+    }
+
+    private fun rejectPhoto(file: File, reason: String) {
+        file.delete()
+        _uploadStatus.value = reason
+    }
+
+    override fun onSensorChanged(event: SensorEvent?) {
+        if (event?.sensor?.type == Sensor.TYPE_LIGHT) {
+            currentLuxValue = event.values[0]
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        sensorManager.unregisterListener(this)
     }
 }

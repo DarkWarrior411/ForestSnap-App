@@ -17,7 +17,8 @@ class NetworkMonitor @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     val isOnline: Flow<Boolean> = callbackFlow {
-        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val connectivityManager =
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
@@ -35,9 +36,10 @@ class NetworkMonitor @Inject constructor(
 
         connectivityManager.registerNetworkCallback(request, callback)
 
-        // Initial state
         val activeNetwork = connectivityManager.activeNetwork
-        val isInitiallyOnline = activeNetwork != null
+        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
+        val isInitiallyOnline =
+            capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
         trySend(isInitiallyOnline)
 
         awaitClose {

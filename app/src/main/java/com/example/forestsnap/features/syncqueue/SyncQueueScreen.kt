@@ -22,9 +22,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Pending
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -74,21 +79,33 @@ fun SyncQueueScreen(viewModel: SyncQueueViewModel = hiltViewModel()) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text("Sync Queue", style = MaterialTheme.typography.headlineMedium)
                 Text(
-                    text = if (isOnline) "🟢 Connected" else "🔴 Offline",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (isOnline) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                    "Sync Queue",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
                 )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = if (isOnline) Icons.Default.CloudUpload else Icons.Default.CloudOff,
+                        contentDescription = null,
+                        tint = if (isOnline) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (isOnline) "Ready to Sync" else "Offline",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isOnline) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                    )
+                }
             }
 
             Button(
                 onClick = {
                     val forceSyncRequest = OneTimeWorkRequestBuilder<CloudSyncWorker>().build()
-
                     WorkManager.getInstance(context).enqueueUniqueWork(
                         "ManualCloudSync",
-                        androidx.work.ExistingWorkPolicy.REPLACE,
+                        androidx.work.ExistingWorkPolicy.KEEP,
                         forceSyncRequest
                     )
                 },
@@ -101,18 +118,21 @@ fun SyncQueueScreen(viewModel: SyncQueueViewModel = hiltViewModel()) {
         Spacer(modifier = Modifier.height(16.dp))
 
         if (queue.isEmpty()) {
-            Text("No pending snaps. You are all caught up!")
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No pending snaps. You are all caught up!", color = Color.Gray)
+            }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(queue) { snap ->
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(queue, key = { it.id }) { snap ->
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { selectedImagePath = snap.photoPath },
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                     ) {
                         Row(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             AsyncImage(
@@ -126,26 +146,65 @@ fun SyncQueueScreen(viewModel: SyncQueueViewModel = hiltViewModel()) {
 
                             Spacer(modifier = Modifier.width(16.dp))
 
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    "Snap ID: ${snap.id}",
+                                    "Snap #${snap.id}",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    "Time: ${formatTimestamp(snap.timestamp)}",
+                                    formatTimestamp(snap.timestamp),
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color.Gray
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    "Lat: ${String.format("%.4f", snap.latitude)}°",
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                                Text(
-                                    "Lng: ${String.format("%.4f", snap.longitude)}°",
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    when {
+                                        snap.isSyncing -> {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(14.dp),
+                                                strokeWidth = 2.dp
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                "Uploading to Server...",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+
+                                        snap.syncStatus != null -> {
+                                            Icon(
+                                                Icons.Default.Error,
+                                                null,
+                                                tint = MaterialTheme.colorScheme.error,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                snap.syncStatus,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+
+                                        else -> {
+                                            Icon(
+                                                Icons.Default.Pending,
+                                                null,
+                                                tint = Color.Gray,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                "Pending Sync",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = Color.Gray
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

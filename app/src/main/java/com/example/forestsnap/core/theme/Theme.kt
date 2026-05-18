@@ -17,14 +17,15 @@ import androidx.core.view.WindowCompat
 val PrimaryGreen = Color(0xFF2E7D32)
 val AccentOrange = Color(0xFFE65100)
 val SurfaceLight = Color(0xFFF5F5F6)
-val SurfaceDark = Color(0xFF121212)
+
+val SurfaceDark = Color(0xFF000000)
 
 private val DarkColorScheme = darkColorScheme(
     primary = PrimaryGreen,
     secondary = AccentOrange,
     surface = SurfaceDark,
-    background = Color(0xFF1E1E1E),
-    surfaceVariant = Color(0xFF2D2D2D),
+    background = Color(0xFF000000),
+    surfaceVariant = Color(0xFF1A1A1A),
     onSurfaceVariant = Color.White,
     primaryContainer = Color(0xFF1B5E20),
     onPrimaryContainer = Color.White,
@@ -69,11 +70,11 @@ fun ForestSnapTheme(
 
     if (!view.isInEditMode) {
         SideEffect {
-
             val activity = view.context.findActivity()
             if (activity != null) {
                 val window = activity.window
-                window.statusBarColor = colorScheme.primary.toArgb()
+                window.statusBarColor =
+                    colorScheme.background.toArgb()
                 WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars =
                     !darkTheme
             }

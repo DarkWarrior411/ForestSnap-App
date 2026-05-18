@@ -19,8 +19,39 @@ interface SyncSnapDao {
     @Query("UPDATE sync_snaps SET isSynced = 1, isSyncing = 0 WHERE id = :snapId")
     suspend fun markAsSynced(snapId: Int)
 
-    @Query("UPDATE sync_snaps SET isSynced = 1, isSyncing = 0, fireRiskPercent = :fireRisk, fuelLoadScore = :fuelLoad, drynessTier = :dryness WHERE id = :snapId")
-    suspend fun updateAnalysisAndMarkSynced(snapId: Int, fireRisk: Double, fuelLoad: Double, dryness: Int)
+    @Query("UPDATE sync_snaps SET isSyncing = 0, syncStatus = :status, lastAttemptedAt = :timestamp WHERE id = :snapId")
+    suspend fun markAsError(
+        snapId: Int,
+        status: String,
+        timestamp: Long = System.currentTimeMillis()
+    )
+
+    @Query(
+        """
+        UPDATE sync_snaps 
+        SET isSynced = 1, 
+            isSyncing = 0, 
+            syncStatus = null,
+            fireRiskPercent = :fireRisk, 
+            fuelLoadScore = :fuelLoad, 
+            drynessTier = :dryness,
+            temperatureC = :temperatureC,
+            humidityPercent = :humidityPercent,
+            windSpeedMs = :windSpeedMs,
+            windDirectionDeg = :windDir 
+        WHERE id = :snapId
+    """
+    )
+    suspend fun updateAnalysisAndMarkSynced(
+        snapId: Int,
+        fireRisk: Double,
+        fuelLoad: Double,
+        dryness: Int,
+        temperatureC: Double,
+        humidityPercent: Int,
+        windSpeedMs: Double,
+        windDir: Int?
+    )
 
     @Query("SELECT COUNT(*) FROM sync_snaps WHERE isSynced = 0")
     fun getUnsyncedCount(): Flow<Int>
@@ -33,4 +64,7 @@ interface SyncSnapDao {
 
     @Query("DELETE FROM sync_snaps WHERE id = :snapId")
     suspend fun deleteSnap(snapId: Int)
+
+    @Query("UPDATE sync_snaps SET isSyncing = 0 WHERE isSyncing = 1")
+    suspend fun resetStuckSyncStates()
 }

@@ -1,96 +1,449 @@
-import React, { useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap, LayersControl } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-import type { AnalysisRecord } from "../types";
-
-// Fix for default Leaflet markers in React
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-});
+import React, {
+  useMemo,
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+} from "react";
+import Map, {
+  Source,
+  Layer,
+  Popup,
+  type MapRef,
+  type LayerProps,
+} from "react-map-gl/mapbox";
+import * as turf from "@turf/turf";
+import "mapbox-gl/dist/mapbox-gl.css";
+import type {
+  AnalysisRecord,
+  FirmsFirePoint,
+  HeatmapSquare,
+  GeoJsonFeatureCollection,
+} from "../types";
+import { Play, Pause, Flame, Droplets, Wind } from "lucide-react";
 
 interface MapProps {
   records: AnalysisRecord[];
+  firmsData: FirmsFirePoint[];
+  heatmapData: HeatmapSquare[];
+  boundaries: GeoJsonFeatureCollection | null;
   selectedRecordId: number | null;
   onMarkerClick: (id: number) => void;
 }
 
-// Component to recenter map when selected record changes
-const MapController: React.FC<{ selectedRecord: AnalysisRecord | null }> = ({ selectedRecord }) => {
-  const map = useMap();
-  useEffect(() => {
-    if (selectedRecord) {
-      map.flyTo([selectedRecord.latitude, selectedRecord.longitude], 14, {
-        duration: 1.5,
-      });
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+
+export const MapView: React.FC<MapProps> = ({
+  records,
+  firmsData,
+  heatmapData,
+  boundaries,
+  selectedRecordId,
+  onMarkerClick,
+}) => {
+  const mapRef = useRef<MapRef>(null);
+
+  const [timeProgress, setTimeProgress] = useState(100);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [hoveredRecord, setHoveredRecord] = useState<AnalysisRecord | null>(
+    null,
+  );
+  const [mapTheme, setMapTheme] = useState(() => {
+    if (typeof document !== "undefined") {
+      return document.documentElement.classList.contains("dark")
+        ? "dark-v11"
+        : "light-v11";
     }
-  }, [selectedRecord, map]);
-  return null;
-};
+    return "dark-v11";
+  });
 
-export const MapView: React.FC<MapProps> = ({ records, selectedRecordId, onMarkerClick }) => {
-  const defaultCenter: [number, number] = records.length > 0 
-    ? [records[0].latitude, records[0].longitude] 
-    : [37.7749, -122.4194]; // Default to SF if no data
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const darkActive = document.documentElement.classList.contains("dark");
+      setMapTheme(darkActive ? "dark-v11" : "light-v11");
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => observer.disconnect();
+  }, []);
 
-  const selectedRecord = records.find((r) => r.id === selectedRecordId) || null;
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isPlaying) {
+      interval = setInterval(() => {
+        setTimeProgress((prev) => {
+          if (prev >= 100) {
+            setIsPlaying(false);
+            return 100;
+          }
+          return prev + 1;
+        });
+      }, 150);
+    }
+    return () => clearInterval(interval);
+  }, [isPlaying]);
+
+  useEffect(() => {
+    if (selectedRecordId && mapRef.current) {
+      const record = records.find((r) => r.id === selectedRecordId);
+      if (record) {
+        mapRef.current.flyTo({
+          center: [record.longitude, record.latitude],
+          zoom: 14,
+          duration: 2000,
+          essential: true,
+        });
+      }
+    }
+  }, [selectedRecordId, records]);
+
+  const visibleRecords = useMemo(() => {
+    if (records.length === 0) return [];
+    const sorted = [...records].sort(
+      (a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+    );
+    const limitIndex = Math.max(
+      1,
+      Math.ceil((timeProgress / 100) * sorted.length),
+    );
+    return sorted.slice(0, limitIndex);
+  }, [records, timeProgress]);
+
+  const snapsGeoJSON = useMemo(
+    () => ({
+      type: "FeatureCollection" as const,
+      features: visibleRecords.map((record) => ({
+        type: "Feature" as const,
+        properties: {
+          id: record.id,
+          risk: record.final_fire_risk_percent,
+          recordStr: JSON.stringify(record),
+        },
+        geometry: {
+          type: "Point" as const,
+          coordinates: [record.longitude, record.latitude],
+        },
+      })),
+    }),
+    [visibleRecords],
+  );
+
+  const spreadConesGeoJSON = useMemo(() => {
+    const criticalRecords = visibleRecords.filter(
+      (r) => r.final_fire_risk_percent >= 75,
+    );
+    const features = criticalRecords.map((record) => {
+      const center = [record.longitude, record.latitude];
+      const bearing = (record.wind_direction_deg + 180) % 360;
+      const distance = Math.max(0.5, record.wind_speed_ms * 0.25);
+      const spreadAngle = 45;
+
+      const p1 = center;
+      const p2 = turf.destination(center, distance, bearing - spreadAngle / 2)
+        .geometry.coordinates;
+      const p3 = turf.destination(center, distance * 1.1, bearing).geometry
+        .coordinates;
+      const p4 = turf.destination(center, distance, bearing + spreadAngle / 2)
+        .geometry.coordinates;
+
+      return turf.polygon([[p1, p2, p3, p4, p1]], {
+        risk: record.final_fire_risk_percent,
+      });
+    });
+    return { type: "FeatureCollection" as const, features };
+  }, [visibleRecords]);
+
+  const firmsGeoJSON = useMemo(
+    () => ({
+      type: "FeatureCollection" as const,
+      features: firmsData.map((fire) => ({
+        type: "Feature" as const,
+        properties: { brightness: fire.brightness },
+        geometry: {
+          type: "Point" as const,
+          coordinates: [fire.longitude, fire.latitude],
+        },
+      })),
+    }),
+    [firmsData],
+  );
+
+  const riskHeatmapGeoJSON = useMemo(
+    () => ({
+      type: "FeatureCollection" as const,
+      features: heatmapData.map((h) => ({
+        type: "Feature" as const,
+        properties: { avg_risk: h.avg_risk },
+        geometry: {
+          type: "Point" as const,
+          coordinates: [h.center_lon, h.center_lat],
+        },
+      })),
+    }),
+    [heatmapData],
+  );
+
+  const boundaryLayer: LayerProps = {
+    id: "forest-boundaries",
+    type: "line",
+    paint: {
+      "line-color": "#10b981",
+      "line-width": 2,
+      "line-opacity": 0.5,
+      "line-dasharray": [2, 2],
+    },
+  };
+
+  const boundaryFillLayer: LayerProps = {
+    id: "forest-boundaries-fill",
+    type: "fill",
+    paint: { "fill-color": "#10b981", "fill-opacity": 0.05 },
+  };
+
+  const firmsHeatmapLayer: LayerProps = {
+    id: "firms-heat",
+    type: "heatmap",
+    paint: {
+      "heatmap-weight": [
+        "interpolate",
+        ["linear"],
+        ["get", "brightness"],
+        300,
+        0,
+        400,
+        1,
+      ],
+      "heatmap-intensity": 1,
+      "heatmap-color": [
+        "interpolate",
+        ["linear"],
+        ["heatmap-density"],
+        0,
+        "rgba(0,0,0,0)",
+        0.2,
+        "rgba(251,191,36,0.5)",
+        0.8,
+        "rgba(239,68,68,0.8)",
+        1,
+        "rgb(153,27,27)",
+      ],
+      "heatmap-radius": 20,
+      "heatmap-opacity": 0.6,
+    },
+  };
+
+  const localHeatmapLayer: LayerProps = {
+    id: "local-heat",
+    type: "heatmap",
+    paint: {
+      "heatmap-weight": [
+        "interpolate",
+        ["linear"],
+        ["get", "avg_risk"],
+        0,
+        0,
+        100,
+        1,
+      ],
+      "heatmap-color": [
+        "interpolate",
+        ["linear"],
+        ["heatmap-density"],
+        0,
+        "rgba(0,0,0,0)",
+        0.4,
+        "rgba(16,185,129,0.3)",
+        0.8,
+        "rgba(245,158,11,0.5)",
+        1,
+        "rgba(239,68,68,0.6)",
+      ],
+      "heatmap-radius": 30,
+    },
+  };
+
+  const spreadConeLayer: LayerProps = {
+    id: "spread-cones",
+    type: "fill",
+    paint: {
+      "fill-color": "#ef4444",
+      "fill-opacity": 0.25,
+      "fill-outline-color": "#991b1b",
+    },
+  };
+
+  const unclusteredPointLayer: LayerProps = {
+    id: "unclustered-point",
+    type: "circle",
+    paint: {
+      "circle-color": [
+        "step",
+        ["get", "risk"],
+        "#10b981",
+        25,
+        "#f59e0b",
+        50,
+        "#f97316",
+        75,
+        "#ef4444",
+      ],
+      "circle-radius": [
+        "case",
+        ["boolean", ["feature-state", "hover"], false],
+        10,
+        7,
+      ],
+      "circle-stroke-width": 2,
+      "circle-stroke-color": "#ffffff",
+      "circle-opacity": 0.9,
+    },
+  };
+
+  const onMouseEnter = useCallback((e: any) => {
+    if (e.features && e.features.length > 0) {
+      mapRef.current?.getCanvas().style.setProperty("cursor", "pointer");
+      const record = JSON.parse(e.features[0].properties.recordStr);
+      setHoveredRecord(record);
+    }
+  }, []);
+
+  const onMouseLeave = useCallback(() => {
+    mapRef.current?.getCanvas().style.setProperty("cursor", "grab");
+    setHoveredRecord(null);
+  }, []);
+
+  const initialViewState = useMemo(() => {
+    if (records.length > 0) {
+      return {
+        latitude: records[0].latitude,
+        longitude: records[0].longitude,
+        zoom: 6,
+      };
+    }
+    return { latitude: 13.03, longitude: 77.56, zoom: 4 };
+  }, [records]);
 
   return (
-    <div className="h-full w-full overflow-hidden">
-      <MapContainer
-        center={defaultCenter}
-        zoom={10}
-        style={{ height: "100%", width: "100%" }}
-        className="z-0"
+    <div className="relative h-full w-full overflow-hidden flex flex-col bg-background">
+      <Map
+        key={mapTheme}
+        ref={mapRef}
+        mapboxAccessToken={MAPBOX_TOKEN}
+        initialViewState={initialViewState}
+        mapStyle={`mapbox://styles/mapbox/${mapTheme}`}
+        interactiveLayerIds={["unclustered-point"]}
+        onClick={(e) => {
+          if (e.features && e.features.length > 0) {
+            onMarkerClick(e.features[0].properties?.id);
+          }
+        }}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
       >
-        <LayersControl position="topright">
-          <LayersControl.BaseLayer checked name="Dark Map">
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-            />
-          </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="Light Map">
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-            />
-          </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="Satellite">
-            <TileLayer
-              attribution='&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-            />
-          </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="Outdoors">
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-          </LayersControl.BaseLayer>
-        </LayersControl>
-        
-        {records.map((record) => (
-          <Marker
-            key={record.id}
-            position={[record.latitude, record.longitude]}
-            eventHandlers={{
-              click: () => onMarkerClick(record.id),
-            }}
+        {boundaries && (
+          <Source id="boundaries" type="geojson" data={boundaries}>
+            <Layer {...boundaryFillLayer} />
+            <Layer {...boundaryLayer} />
+          </Source>
+        )}
+
+        <Source id="local-heatmap" type="geojson" data={riskHeatmapGeoJSON}>
+          <Layer {...localHeatmapLayer} />
+        </Source>
+
+        <Source id="firms" type="geojson" data={firmsGeoJSON}>
+          <Layer {...firmsHeatmapLayer} />
+        </Source>
+
+        <Source id="cones" type="geojson" data={spreadConesGeoJSON}>
+          <Layer {...spreadConeLayer} />
+        </Source>
+
+        <Source id="snaps" type="geojson" data={snapsGeoJSON}>
+          <Layer {...unclusteredPointLayer} />
+        </Source>
+
+        {hoveredRecord && (
+          <Popup
+            longitude={hoveredRecord.longitude}
+            latitude={hoveredRecord.latitude}
+            closeButton={false}
+            anchor="bottom"
+            offset={12}
+            className="custom-map-popup"
+            maxWidth="250px"
           >
-            <Popup className="bg-[#064e3b] text-emerald-50 rounded-lg border border-[#065f46]">
-              <div className="font-semibold text-emerald-400">Risk: {record.final_fire_risk_percent.toFixed(1)}%</div>
-              <div className="text-sm">Temp: {record.temperature_c.toFixed(1)}°C</div>
-              <div className="text-sm">Wind: {record.wind_speed_ms.toFixed(1)} m/s</div>
-            </Popup>
-          </Marker>
-        ))}
-        <MapController selectedRecord={selectedRecord} />
-      </MapContainer>
+            <div className="bg-surface p-3 rounded-lg border border-border-main shadow-xl text-text-main">
+              <div className="flex items-center justify-between mb-2 pb-2 border-b border-border-main">
+                <span className="font-bold text-sm">Risk Profile</span>
+                <span
+                  className={`font-black text-sm ${hoveredRecord.final_fire_risk_percent >= 75 ? "text-red-500" : "text-primary"}`}
+                >
+                  {hoveredRecord.final_fire_risk_percent.toFixed(1)}%
+                </span>
+              </div>
+              <div className="space-y-1 text-xs text-text-muted">
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-1">
+                    <Flame size={12} /> Fuel
+                  </span>{" "}
+                  <span>{hoveredRecord.fuel_load_score.toFixed(1)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-1">
+                    <Droplets size={12} /> Humid
+                  </span>{" "}
+                  <span>{hoveredRecord.humidity_percent}%</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-1">
+                    <Wind size={12} /> Wind
+                  </span>{" "}
+                  <span>{hoveredRecord.wind_speed_ms.toFixed(1)}m/s</span>
+                </div>
+              </div>
+            </div>
+          </Popup>
+        )}
+      </Map>
+
+      {}
+      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-background/95 backdrop-blur-md p-4 rounded-2xl border border-border-main w-11/12 max-w-lg flex items-center gap-4 shadow-2xl z-10">
+        <button
+          onClick={() => {
+            if (timeProgress >= 100) setTimeProgress(0);
+            setIsPlaying(!isPlaying);
+          }}
+          className={`p-3 rounded-full text-white transition-colors shadow-lg ${isPlaying ? "bg-amber-500 hover:bg-amber-400" : "bg-primary hover:bg-emerald-400"}`}
+        >
+          {isPlaying ? (
+            <Pause size={20} fill="currentColor" />
+          ) : (
+            <Play size={20} fill="currentColor" className="ml-0.5" />
+          )}
+        </button>
+        <div className="flex-1 flex flex-col pt-1">
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={timeProgress}
+            onChange={(e) => {
+              setTimeProgress(Number(e.target.value));
+              setIsPlaying(false);
+            }}
+            className="w-full accent-primary h-2 bg-surface rounded-lg appearance-none cursor-pointer"
+          />
+          <div className="flex justify-between text-[11px] text-text-muted font-bold mt-2 uppercase tracking-widest">
+            <span>Historical</span>
+            <span className="opacity-40">Time Progression</span>
+            <span>Live Sync</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

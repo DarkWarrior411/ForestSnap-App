@@ -32,33 +32,25 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.forestsnap.core.utils.PreferenceManager
-import kotlinx.coroutines.launch
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
-fun SettingsScreen() {
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-    val preferenceManager = remember { PreferenceManager(context) }
-
-    val selectedTheme by preferenceManager.themeFlow.collectAsState(initial = "System Default")
-    val localCompressionEnabled by preferenceManager.compressionFlow.collectAsState(initial = true)
-    val strictLocationEnabled by preferenceManager.strictLocationFlow.collectAsState(initial = true)
-    val offlineModeEnabled by preferenceManager.offlineModeFlow.collectAsState(initial = false)
+fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
+    val selectedTheme by viewModel.themeFlow.collectAsState(initial = "System Default")
+    val localCompressionEnabled by viewModel.compressionFlow.collectAsState(initial = true)
+    val strictLocationEnabled by viewModel.strictLocationFlow.collectAsState(initial = true)
+    val offlineModeEnabled by viewModel.offlineModeFlow.collectAsState(initial = false)
 
     var showThemeDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
@@ -122,11 +114,7 @@ fun SettingsScreen() {
                 title = "Local Image Compression",
                 description = "Compress images on device to save storage space",
                 isChecked = localCompressionEnabled,
-                onCheckedChange = { isChecked ->
-                    coroutineScope.launch {
-                        preferenceManager.setCompression(isChecked)
-                    }
-                }
+                onCheckedChange = { viewModel.updateCompression(it) }
             )
         }
 
@@ -138,11 +126,7 @@ fun SettingsScreen() {
                 title = "Strict Location Requirement",
                 description = "Reject all photos that do not contain valid EXIF location data",
                 isChecked = strictLocationEnabled,
-                onCheckedChange = { isChecked ->
-                    coroutineScope.launch {
-                        preferenceManager.setStrictLocation(isChecked)
-                    }
-                }
+                onCheckedChange = { viewModel.updateStrictLocation(it) }
             )
         }
         item {
@@ -150,11 +134,7 @@ fun SettingsScreen() {
                 title = "Offline Mode",
                 description = "Queue all uploads locally until Wi-Fi is available",
                 isChecked = offlineModeEnabled,
-                onCheckedChange = { isChecked ->
-                    coroutineScope.launch {
-                        preferenceManager.setOfflineMode(isChecked)
-                    }
-                }
+                onCheckedChange = { viewModel.updateOfflineMode(it) }
             )
         }
 
@@ -200,10 +180,8 @@ fun SettingsScreen() {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    coroutineScope.launch {
-                                        preferenceManager.saveTheme(theme)
-                                        showThemeDialog = false
-                                    }
+                                    viewModel.updateTheme(theme)
+                                    showThemeDialog = false
                                 }
                                 .padding(vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -211,10 +189,8 @@ fun SettingsScreen() {
                             RadioButton(
                                 selected = selectedTheme == theme,
                                 onClick = {
-                                    coroutineScope.launch {
-                                        preferenceManager.saveTheme(theme)
-                                        showThemeDialog = false
-                                    }
+                                    viewModel.updateTheme(theme)
+                                    showThemeDialog = false
                                 }
                             )
                             Spacer(modifier = Modifier.width(8.dp))

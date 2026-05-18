@@ -1,7 +1,6 @@
 package com.example.forestsnap.data.sync
 
 import android.content.Context
-import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -26,29 +25,30 @@ class CloudSyncWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         return try {
+            dao.resetStuckSyncStates()
             val pendingSnaps = dao.getPendingSnaps().first()
 
-            if (pendingSnaps.isEmpty()) {
-                return Result.success()
-            }
+            if (pendingSnaps.isEmpty()) return Result.success()
 
             for (snap in pendingSnaps) {
                 dao.setSyncingStatus(snap.id, true)
-                
                 val imageFile = File(snap.photoPath)
 
                 if (!imageFile.exists()) {
-                    Log.e("CloudSync", "File not found: ${snap.photoPath}. Marking as error.")
-                    // Do not mark as synced to prevent silent failure if we actually wanted to retry. 
-                    // But if the file is truly gone, we must drop it or mark it as error.
-                    // Let's delete it so it stops clogging the queue.
-                    dao.deleteSnap(snap.id)
+                    if (snap.lastAttemptedAt != null && System.currentTimeMillis() - snap.lastAttemptedAt > 7L * 24 * 60 * 60 * 1000) {
+                        dao.deleteSnap(snap.id)
+                    } else {
+                        dao.markAsError(snap.id, "file_not_found")
+                    }
                     continue
                 }
 
-                val latBody = snap.latitude.toString().toRequestBody("text/plain".toMediaTypeOrNull())
-                val lonBody = snap.longitude.toString().toRequestBody("text/plain".toMediaTypeOrNull())
-                
+                val safeLat = snap.latitude ?: 0.0
+                val safeLon = snap.longitude ?: 0.0
+
+                val latBody = safeLat.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+                val lonBody = safeLon.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+
                 val imagePart = MultipartBody.Part.createFormData(
                     "image",
                     imageFile.name,
@@ -57,32 +57,30 @@ class CloudSyncWorker @AssistedInject constructor(
 
                 try {
                     val response = api.analyzeEnvironment(latBody, lonBody, imagePart)
-                    Log.i("CloudSync", "Analysis Complete. Risk: ${response.final_fire_risk_percent}%")
                     dao.updateAnalysisAndMarkSynced(
                         snap.id,
                         response.final_fire_risk_percent,
                         response.fuel_load_score,
-                        response.dryness_risk_tier
+                        response.dryness_risk_tier,
+                        response.temperature_c,
+                        response.humidity_percent,
+                        response.wind_speed_ms,
+                        response.wind_direction_deg
                     )
                 } catch (e: retrofit2.HttpException) {
-                    Log.e("CloudSync", "Server error: ${e.code()}")
                     if (e.code() >= 500 || e.code() == 408) {
                         dao.setSyncingStatus(snap.id, false)
                         return Result.retry()
                     } else {
-                        Log.e("CloudSync", "Unrecoverable error. Dropping snap ${snap.id}.")
-                        dao.markAsSynced(snap.id)
+                        dao.markAsError(snap.id, "FAILED_CLIENT_ERROR_${e.code()}")
                     }
                 } catch (e: Exception) {
-                    Log.e("CloudSync", "Network error", e)
                     dao.setSyncingStatus(snap.id, false)
                     return Result.retry()
                 }
             }
-
             Result.success()
         } catch (e: Exception) {
-            e.printStackTrace()
             Result.retry()
         }
     }

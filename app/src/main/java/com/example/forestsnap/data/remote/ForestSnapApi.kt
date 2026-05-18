@@ -1,15 +1,29 @@
 package com.example.forestsnap.data.remote
 
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import okhttp3.ResponseBody
+import retrofit2.Call
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
-import okhttp3.MultipartBody
-import okhttp3.RequestBody
+import retrofit2.http.Query
+import retrofit2.http.Streaming
+
+data class AnalysisResponse(
+    val fuel_load_score: Double,
+    val dryness_risk_tier: Int,
+    val temperature_c: Double,
+    val humidity_percent: Int,
+    val wind_speed_ms: Double,
+    val wind_direction_deg: Int,
+    val final_fire_risk_percent: Double
+)
 
 data class HistoryResponse(
+    val id: Int,               // FIXED: Added missing server field
+    val timestamp: String,     // FIXED: Added missing server field
     val latitude: Double,
     val longitude: Double,
     val fuel_load_score: Double,
@@ -17,12 +31,87 @@ data class HistoryResponse(
     val temperature_c: Double,
     val humidity_percent: Int,
     val wind_speed_ms: Double,
+    val wind_direction_deg: Int?,
     val final_fire_risk_percent: Double
+)
+
+data class WeatherProxyResponse(
+    val temp: Double,
+    val humidity: Int,
+    val wind_speed: Double,
+    val wind_direction: Int
+)
+
+data class HeatmapSquare(
+    val center_lat: Double,
+    val center_lon: Double,
+    val avg_risk: Double,
+    val point_count: Int,
+    val grid_size: Double
+)
+
+data class FirmsFirePoint(
+    val latitude: Double,
+    val longitude: Double,
+    val brightness: Double,
+    val confidence: String
+)
+
+data class FeatureCollection(val features: List<Feature>)
+data class Feature(val properties: Properties, val geometry: Geometry)
+data class Properties(val name: String, val type: String)
+data class Geometry(val type: String, val coordinates: List<List<List<Double>>>)
+
+// Added System Alert model
+data class SystemAlert(
+    val id: String,
+    val type: String,
+    val severity: String,
+    val title: String,
+    val message: String,
+    val lat: Double,
+    val lon: Double
 )
 
 interface ForestSnapApi {
     @GET("history")
     suspend fun getHistoricalData(): List<HistoryResponse>
+
+    @GET("history/region")
+    suspend fun getRegionalData(
+        @Query("minLat") minLat: Double,
+        @Query("maxLat") maxLat: Double,
+        @Query("minLon") minLon: Double,
+        @Query("maxLon") maxLon: Double
+    ): List<HistoryResponse>
+
+    @GET("heatmap/region")
+    suspend fun getHeatmapRegion(
+        @Query("minLat") minLat: Double,
+        @Query("maxLat") maxLat: Double,
+        @Query("minLon") minLon: Double,
+        @Query("maxLon") maxLon: Double,
+        @Query("grid_size") gridSize: Double = 0.01
+    ): List<HeatmapSquare>
+
+    @GET("forests/boundaries")
+    suspend fun getForestBoundaries(): FeatureCollection
+
+    @GET("firms/active-fires")
+    suspend fun getGlobalFires(): List<FirmsFirePoint>
+
+    @GET("weather/current")
+    suspend fun getCurrentWeather(
+        @Query("lat") lat: Double,
+        @Query("lon") lon: Double
+    ): WeatherProxyResponse
+
+    @GET("alerts")
+    suspend fun getSystemAlerts(): List<SystemAlert>
+
+    @GET("stream")
+    @Streaming
+    fun getServerStream(): Call<ResponseBody>
 
     @Multipart
     @POST("analyze")
@@ -30,17 +119,5 @@ interface ForestSnapApi {
         @Part("lat") lat: RequestBody,
         @Part("lon") lon: RequestBody,
         @Part image: MultipartBody.Part
-    ): HistoryResponse
-}
-
-object NetworkModule {
-    const val BASE_URL = "http://10.20.34.117:8000/"
-
-    val api: ForestSnapApi by lazy {
-        Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(ForestSnapApi::class.java)
-    }
+    ): AnalysisResponse
 }

@@ -1,8 +1,8 @@
 package com.example.forestsnap.features.dashboard
 
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.assertIsDisplayed
 import com.example.forestsnap.MainActivity
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -20,8 +20,7 @@ class DashboardUITest {
 
     @Test
     fun appLaunchesAndShowsDashboard() {
-        // Simple sanity check that the main activity loads the dashboard screen
-        // "Camera" is the text on the camera button in the dashboard
+
         composeTestRule.onNodeWithText("Camera").assertIsDisplayed()
         composeTestRule.onNodeWithText("Location").assertIsDisplayed()
         composeTestRule.onNodeWithText("Risk Level").assertIsDisplayed()

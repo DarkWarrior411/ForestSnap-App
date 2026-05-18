@@ -1,92 +1,160 @@
 import random
-from datetime import datetime, timedelta
-from database import SessionLocal, AnalysisRecord
+from datetime import datetime, timedelta, timezone
+from sqlalchemy.orm import Session
+from database import engine, Base, SessionLocal, AnalysisRecord
 
-def seed_database():
-    db = SessionLocal()
-    try:
-        # Check if database already has records
-        if db.query(AnalysisRecord).count() > 0:
-            print("Database already has records. Deleting old records...")
-            db.query(AnalysisRecord).delete()
-            db.commit()
+Base.metadata.create_all(bind=engine)
 
-        print("Seeding database with sample analysis records across global forests...")
+REGIONS = [
+    {
+        "name": "Bengaluru & Western Ghats",
+        "center_lat": 13.03,
+        "center_lon": 77.56,
+        "spread_deg": 2.5,
+        "points": 500,
+        "temp_range": (22.0, 36.0),
+        "hum_range": (30, 75),
+        "wind_range": (2.0, 10.0),
+        "fuel_range": (40.0, 85.0),
+    },
+    {
+        "name": "California Wildfire Zones (USA)",
+        "center_lat": 37.0,
+        "center_lon": -120.0,
+        "spread_deg": 4.0,
+        "points": 500,
+        "temp_range": (28.0, 42.0),
+        "hum_range": (10, 25),
+        "wind_range": (5.0, 15.0),
+        "fuel_range": (70.0, 98.0),
+    },
+    {
+        "name": "Amazon Rainforest (Brazil)",
+        "center_lat": -3.46,
+        "center_lon": -62.21,
+        "spread_deg": 5.0,
+        "points": 500,
+        "temp_range": (26.0, 32.0),
+        "hum_range": (75, 98),
+        "wind_range": (1.0, 5.0),
+        "fuel_range": (80.0, 100.0),
+    },
+    {
+        "name": "Australian Outback & Bush",
+        "center_lat": -31.25,
+        "center_lon": 146.92,
+        "spread_deg": 5.0,
+        "points": 500,
+        "temp_range": (30.0, 46.0),
+        "hum_range": (5, 20),
+        "wind_range": (8.0, 20.0),
+        "fuel_range": (50.0, 95.0),
+    },
+    {
+        "name": "Siberian Boreal Forests (Russia)",
+        "center_lat": 61.0,
+        "center_lon": 100.0,
+        "spread_deg": 6.0,
+        "points": 500,
+        "temp_range": (-5.0, 15.0),
+        "hum_range": (60, 85),
+        "wind_range": (2.0, 8.0),
+        "fuel_range": (30.0, 60.0),
+    },
+]
 
-        # Define global forest regions with their typical climate characteristics
-        # (latitude, longitude, temp_range, humidity_range, wind_range)
-        regions = [
-            {"name": "Amazon Rainforest, Brazil", "lat": -3.4653, "lon": -62.2159, "temp": (25, 35), "hum": (70, 95), "wind": (0, 5)},
-            {"name": "Congo Basin, DRC", "lat": -1.4118, "lon": 23.5186, "temp": (24, 33), "hum": (65, 90), "wind": (0, 6)},
-            {"name": "Boreal Forest, Canada", "lat": 56.1304, "lon": -106.3468, "temp": (5, 22), "hum": (30, 60), "wind": (2, 12)},
-            {"name": "Taiga, Russia", "lat": 61.5240, "lon": 105.3188, "temp": (2, 18), "hum": (40, 70), "wind": (3, 10)},
-            {"name": "Black Forest, Germany", "lat": 48.3366, "lon": 8.1633, "temp": (12, 25), "hum": (50, 80), "wind": (1, 8)},
-            {"name": "Daintree Forest, Australia", "lat": -16.1700, "lon": 145.4185, "temp": (22, 32), "hum": (60, 85), "wind": (2, 9)},
-            {"name": "Tongass National Forest, Alaska", "lat": 56.8833, "lon": -133.4000, "temp": (5, 15), "hum": (70, 95), "wind": (1, 10)},
-            {"name": "Sierra Nevada, CA, USA", "lat": 37.75, "lon": -119.58, "temp": (20, 38), "hum": (10, 40), "wind": (2, 15)},
-            {"name": "Mediterranean Forests, Spain", "lat": 39.5, "lon": -2.5, "temp": (22, 36), "hum": (20, 50), "wind": (1, 10)},
-            {"name": "Western Ghats, India", "lat": 10.15, "lon": 77.01, "temp": (20, 30), "hum": (70, 90), "wind": (1, 6)},
-            {"name": "Coconino National Forest, USA", "lat": 34.85, "lon": -111.48, "temp": (15, 30), "hum": (15, 45), "wind": (3, 14)},
-            {"name": "Valdivian Temperate Forest, Chile", "lat": -39.81, "lon": -73.24, "temp": (10, 22), "hum": (60, 85), "wind": (2, 10)},
-            {"name": "Sinharaja Forest Reserve, Sri Lanka", "lat": 6.40, "lon": 80.45, "temp": (25, 32), "hum": (75, 95), "wind": (1, 5)},
-        ]
 
-        records = []
-        now = datetime.utcnow()
+def calculate_risk(fuel_load, dryness_tier, temp, humidity, wind_speed):
+    """Replicates the exact math from server.py to ensure UI integrity"""
+    base_visual_risk = (dryness_tier / 3.0) * 100
+    temp_mod = max(0, (temp - 20) * 1.5)
+    hum_mod = max(0, (50 - humidity) * 0.8)
+    wind_mod = wind_speed * 2.0
 
-        for region in regions:
-            # Generate 15-20 points per region
-            num_points = random.randint(15, 20)
-            for _ in range(num_points):
-                # Scatter points around the base coordinates (up to ~100km away)
-                lat = region["lat"] + random.uniform(-1.0, 1.0)
-                lon = region["lon"] + random.uniform(-1.0, 1.0)
+    final_risk = (
+        (base_visual_risk * 0.4)
+        + (fuel_load * 0.3)
+        + (temp_mod + hum_mod + wind_mod) * 0.3
+    )
+    return round(min(max(final_risk, 0.0), 100.0), 2)
 
-                temp = random.uniform(*region["temp"])
-                humidity = random.randint(*region["hum"])
-                wind = random.uniform(*region["wind"])
-                fuel = random.uniform(10.0, 90.0)
-                
-                # Make risk correlate somewhat with temp, inverse humidity, and wind
-                # Normalizing factors to create a 0-100 score
-                temp_factor = max(0, min((temp - 5) / 35.0, 1.0)) * 30
-                hum_factor = max(0, min((100 - humidity) / 100.0, 1.0)) * 30
-                wind_factor = max(0, min(wind / 15.0, 1.0)) * 20
-                fuel_factor = (fuel / 100.0) * 20
-                
-                risk_base = temp_factor + hum_factor + wind_factor + fuel_factor
-                final_risk = min(max(risk_base + random.uniform(-5, 5), 0), 100)
-                
-                tier = 0
-                if final_risk > 75: tier = 3
-                elif final_risk > 50: tier = 2
-                elif final_risk > 25: tier = 1
 
-                # Distribute timestamps over the last 14 days
-                timestamp = now - timedelta(days=random.uniform(0, 14), hours=random.uniform(0, 24))
+import asyncio
+from sqlalchemy import delete
 
-                record = AnalysisRecord(
-                    timestamp=timestamp,
-                    latitude=lat,
-                    longitude=lon,
-                    fuel_load_score=fuel,
-                    dryness_risk_tier=tier,
-                    temperature_c=temp,
-                    humidity_percent=humidity,
-                    wind_speed_ms=wind,
-                    final_fire_risk_percent=final_risk
-                )
-                records.append(record)
 
-        db.add_all(records)
-        db.commit()
-        print(f"Successfully seeded {len(records)} records across {len(regions)} global regions.")
+async def seed_database():
+    from database import engine, Base, AsyncSessionLocal
 
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        db.rollback()
-    finally:
-        db.close()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    async with AsyncSessionLocal() as db:
+        try:
+            print("Clearing old records...")
+            await db.execute(delete(AnalysisRecord))
+            await db.commit()
+
+            print("Generating realistic geographic datasets...")
+            records_to_insert = []
+            now = datetime.now(timezone.utc)
+
+            for region in REGIONS:
+                print(f" -> Seeding {region['name']} ({region['points']} points)...")
+
+                for _ in range(region["points"]):
+                    lat = region["center_lat"] + random.uniform(
+                        -region["spread_deg"], region["spread_deg"]
+                    )
+                    lon = region["center_lon"] + random.uniform(
+                        -region["spread_deg"], region["spread_deg"]
+                    )
+
+                    temp = round(random.uniform(*region["temp_range"]), 1)
+                    humidity = random.randint(*region["hum_range"])
+                    wind_speed = round(random.uniform(*region["wind_range"]), 1)
+                    wind_dir = random.randint(0, 359)
+
+                    fuel_load = round(random.uniform(*region["fuel_range"]), 1)
+
+                    if humidity < 30 and temp > 30:
+                        dryness_tier = random.choice([2, 3])
+                    elif humidity > 70:
+                        dryness_tier = random.choice([0, 1])
+                    else:
+                        dryness_tier = random.randint(0, 3)
+
+                    final_risk = calculate_risk(
+                        fuel_load, dryness_tier, temp, humidity, wind_speed
+                    )
+
+                    days_ago = random.randint(0, 90)
+                    hours_ago = random.randint(0, 23)
+                    record_time = now - timedelta(days=days_ago, hours=hours_ago)
+
+                    record = AnalysisRecord(
+                        timestamp=record_time,
+                        latitude=round(lat, 4),
+                        longitude=round(lon, 4),
+                        fuel_load_score=fuel_load,
+                        dryness_risk_tier=dryness_tier,
+                        temperature_c=temp,
+                        humidity_percent=humidity,
+                        wind_speed_ms=wind_speed,
+                        wind_direction_deg=wind_dir,
+                        final_fire_risk_percent=final_risk,
+                    )
+                    records_to_insert.append(record)
+
+            print(f"Injecting {len(records_to_insert)} records into the database...")
+            db.add_all(records_to_insert)
+            await db.commit()
+            print("✅ Database successfully seeded! Fire up the frontend.")
+
+        except Exception as e:
+            print(f"❌ Error seeding database: {e}")
+            await db.rollback()
+
 
 if __name__ == "__main__":
-    seed_database()
+    asyncio.run(seed_database())

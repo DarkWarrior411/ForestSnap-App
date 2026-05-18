@@ -7,3 +7,5 @@ onnxruntime>=1.16.0
 opencv-python-headless>=4.8.0
 numpy>=1.24.0
 sqlalchemy>=2.0.0
+aiosqlite>=0.19.0      # NEW: Async SQLite driver
+sse-starlette>=1.6.5   # NEW: Server-Sent Events for real-time alerts
