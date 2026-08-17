@@ -1,133 +1,59 @@
 # ForestSnap
 
-A comprehensive Android application for capturing, managing, and syncing forest survey snapshots with location data.
+ForestSnap is a full-stack wildfire monitoring and forest management ecosystem. It combines an Android mobile application for field surveys, a React-based web portal for interactive analytics, and an edge computer vision server for real-time fire risk assessment.
 
-## Project Structure
+---
 
-```
-ForestSnap/
-├── build.gradle.kts              # Project-level Gradle configuration
-├── settings.gradle.kts           # Gradle settings and module includes
-├── .gitignore                    # Git ignore rules
-│
-└── app/                          # Main application module
-    ├── build.gradle.kts          # App-level Gradle configuration
-    ├── proguard-rules.pro        # ProGuard rules for code obfuscation
-    │
-    └── src/
-        └── main/
-            ├── AndroidManifest.xml        # App permissions and configuration
-            │
-            ├── res/
-            │   ├── drawable/             # Custom drawables
-            │   ├── mipmap/               # App launcher icons
-            │   └── values/               # String, color, and dimension resources
-            │                 ├── strings.xml
-            │                 ├── colors.xml
-            │                 └── themes.xml
-            │
-            └── java/com/example/forestsnap/
-                │
-                ├── MainActivity.kt                # App entry point
-                ├── ForestSnapApplication.kt       # Custom Application class
-                │
-                ├── core/                         # Core functionality
-                │   ├── theme/
-                │   │   ├── Theme.kt
-                │   │   └── Type.kt
-                │   ├── navigation/
-                │   │   └── NavGraph.kt
-                │   └── utils/
-                │       └── PreferenceManager.kt
-                │
-                ├── data/                         # Data layer
-                │   ├── local/
-                │   │   ├── ForestDatabase.kt
-                │   │   ├── SyncSnapDao.kt
-                │   │   └── SyncSnapEntity.kt
-                │   └── repository/
-                │       └── SyncSnapRepository.kt
-                │
-                └── features/                     # Feature modules
-                    ├── dashboard/
-                    │   ├── DashboardScreen.kt
-                    │   ├── DashboardViewModel.kt
-                    │   └── CameraScreen.kt
-                    ├── map/
-                    │   └── MapScreen.kt
-                    ├── syncqueue/
-                    │   ├── SyncQueueScreen.kt
-                    │   └── SyncQueueViewModel.kt
-                    └── settings/
-                        └── SettingsScreen.kt
+## Ecosystem Architecture
+
+The repository is structured into three main components:
+
+- **`app/`**: Native Android application built with Kotlin and Jetpack Compose. Captures georeferenced forest snapshots, stores data locally via Room, and syncs automatically with the edge backend when online.
+- **`server/`**: Edge inference server powered by FastAPI, OpenCV, and ONNX Runtime. Evaluates fuel load score, biomass dryness risk, integration with real-time OpenWeather, NASA FIRMS thermal anomaly feeds, and live Server-Sent Events (SSE) alert broadcasting.
+- **`web/`**: Dashboard frontend constructed with React, TypeScript, Vite, and Mapbox GL. Features live spatial mapping, historical diff comparison, scenario simulation, and export capabilities.
+
+---
+
+## Key Features
+
+- **Field Data Collection**: Offline-first camera and metadata recording with automatic background upload queue.
+- **Computer Vision Risk Scoring**: Edge ONNX models assess canopy density and fuel accumulation from field photos.
+- **Live Geospatial Mapping**: Mapbox integration displaying active hotspots, perimeter boundaries, and risk tiers.
+- **Environmental Context**: Automated weather fetching and NASA satellite fire monitoring integration.
+- **Scenario Simulation**: Interactive web tool for testing fire risk parameters under varying environmental conditions.
+
+---
+
+## Quick Start
+
+### 1. Edge Server Setup
+Requires Python 3.10+ and ONNX Runtime dependencies.
+
+```bash
+cd server
+pip install -r requirements.txt
+python seed_db.py  # Seed initial database records
+python server.py   # Starts FastAPI server on http://localhost:8000
 ```
 
-## Features
+### 2. Web Portal Setup
+Requires Node.js 18+.
 
-- **Dashboard**: Quick access to main app features
-- **Camera**: Capture forest snapshots with GPS location data
-- **Map**: Visualize snapshot locations on an interactive map
-- **Sync Queue**: Manage pending uploads and retry failed syncs
-- **Settings**: Configure app preferences and behavior
+```bash
+cd web
+npm install
+npm run dev        # Starts Vite dev server on http://localhost:5173
+```
 
-## Technologies Used
+### 3. Mobile App Setup
+Requires Android Studio (API level 26+).
 
-- **Language**: Kotlin
-- **UI Framework**: Jetpack Compose
-- **Database**: Room ORM
-- **Async**: Coroutines & Flow
-- **Navigation**: Jetpack Compose Navigation
-- **Architecture**: MVVM with Repository pattern
-- **Camera**: Camera X library
-- **Maps**: Google Maps Compose
+```bash
+./gradlew installDebug
+```
 
-## Build & Run
-
-### Prerequisites
-- Android SDK 26+ (Min SDK)
-- Android SDK 34 (Target SDK)
-- Android Studio Arctic Fox or later
-
-### Build Steps
-
-1. Clone the repository
-2. Open the project in Android Studio
-3. Sync Gradle files
-4. Build the project:
-   ```bash
-   ./gradlew build
-   ```
-
-5. Run the app on an emulator or physical device:
-   ```bash
-   ./gradlew installDebug
-   ```
-
-## Development
-
-The project follows modern Android development best practices:
-
-- **Jetpack Compose** for UI
-- **Room Database** for local data persistence
-- **Coroutines** for async operations
-- **Flow** for reactive streams
-- **MVVM** architecture pattern
-- **Repository Pattern** for data abstraction
+---
 
 ## License
 
-MIT License
-
-## Contributing
-
-Contributions are welcome! Please follow these guidelines:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## Support
-
-For support, please create an issue in the repository.
+This project is licensed under the MIT License.

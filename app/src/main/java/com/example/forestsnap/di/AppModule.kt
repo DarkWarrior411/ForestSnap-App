@@ -12,12 +12,16 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import okhttp3.OkHttpClient // NEW
+import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import java.util.concurrent.TimeUnit // NEW
+import java.util.concurrent.TimeUnit
+import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Hilt Dependency Injection module providing application-wide singleton dependencies.
+ */
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
@@ -55,24 +59,24 @@ object AppModule {
         return SyncSnapRepository(database, context, preferenceManager)
     }
 
-    // NEW: Provide the OkHttpClient explicitly for the SSE Stream
+    /** Provide configured OkHttpClient instance with custom timeout bounds. */
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
         return OkHttpClient.Builder()
-            // Standard timeouts for normal REST calls
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .build()
     }
 
+    /** Provide Retrofit API client bound to edge server base URL. */
     @Provides
     @Singleton
     fun provideForestSnapApi(okHttpClient: OkHttpClient): ForestSnapApi {
         return Retrofit.Builder()
             .baseUrl("http://10.20.34.117:8000/")
-            .client(okHttpClient) // FIXED: Pass the provided client to Retrofit
+            .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(ForestSnapApi::class.java)

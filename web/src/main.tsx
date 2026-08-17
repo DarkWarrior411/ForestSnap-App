@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./index.css";
 import App from "./App.tsx";
 
+// Global React Query client with default retry and stale-time caching policies
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -14,6 +15,7 @@ const queryClient = new QueryClient({
   },
 });
 
+// Application entry point mounting root React DOM node
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

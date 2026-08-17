@@ -43,6 +43,7 @@ import javax.inject.Inject
 
 enum class RiskFilter { ALL, CRITICAL, HIGH, MODERATE, LOW }
 
+/** State data class backing the Android field dashboard UI. */
 data class DashboardUiState(
     val isOnline: Boolean = true,
     val locationText: String = "Fetching GPS...",
@@ -80,6 +81,9 @@ data class DashboardUiState(
         }
 }
 
+/**
+ * ViewModel managing field dashboard telemetry state, live SSE stream listener, and background sync worker observations.
+ */
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -107,8 +111,8 @@ class DashboardViewModel @Inject constructor(
         connectToLiveStream()
     }
 
+    /** Connect to server SSE endpoint for real-time alert broadcasts. */
     private fun connectToLiveStream() {
-
         val request = Request.Builder().url("http://10.0.2.2:8000/stream").build()
 
         val sseClient = okHttpClient.newBuilder()
@@ -126,7 +130,6 @@ class DashboardViewModel @Inject constructor(
                     try {
                         val newRecord = Gson().fromJson(data, HistoryResponse::class.java)
                         _uiState.update { state ->
-
                             val updatedPins = listOf(newRecord) + state.mapPins
                             state.copy(mapPins = updatedPins.distinctBy {
                                 listOf(
@@ -158,6 +161,7 @@ class DashboardViewModel @Inject constructor(
         sseEventSource = EventSources.createFactory(sseClient).newEventSource(request, listener)
     }
 
+    /** Observe WorkManager background sync status and refresh telemetry upon completion. */
     private fun observeSyncWorker() {
         viewModelScope.launch {
             WorkManager.getInstance(context)

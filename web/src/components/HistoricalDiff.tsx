@@ -17,7 +17,7 @@ interface HistoricalDiffProps {
   records: AnalysisRecord[];
 }
 
-// MOVED OUTSIDE: Fixes performance degradation and typing issue
+// Sub-component for rendering metric comparisons with color-coded deltas
 const MetricRow = ({
   icon: Icon,
   label,
@@ -84,6 +84,9 @@ const MetricRow = ({
   );
 };
 
+/**
+ * Component providing side-by-side metric comparison between two historical survey records.
+ */
 export const HistoricalDiff: React.FC<HistoricalDiffProps> = ({ records }) => {
   const sortedRecords = useMemo(() => {
     return [...records].sort(
@@ -126,7 +129,7 @@ export const HistoricalDiff: React.FC<HistoricalDiffProps> = ({ records }) => {
           </label>
           <select
             value={baselineId}
-            onChange={(e) => setBaselineId(e.target.value)}
+            onChange={(e) => setBaselineId(e.target.value as any)}
             className="bg-background border border-border-main text-text-main text-sm rounded-lg p-2.5 outline-none cursor-pointer"
           >
             <option value="" disabled>
@@ -153,7 +156,7 @@ export const HistoricalDiff: React.FC<HistoricalDiffProps> = ({ records }) => {
           </label>
           <select
             value={comparisonId}
-            onChange={(e) => setComparisonId(e.target.value)}
+            onChange={(e) => setComparisonId(e.target.value as any)}
             className="bg-background border border-border-main text-text-main text-sm rounded-lg p-2.5 outline-none cursor-pointer"
           >
             <option value="" disabled>

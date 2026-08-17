@@ -31,8 +31,12 @@ interface MapProps {
   onMarkerClick: (id: number) => void;
 }
 
+// Mapbox API access token from environment variables
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
+/**
+ * Geospatial MapView component handling vector rendering, satellite overlays, and time-lapse animation.
+ */
 export const MapView: React.FC<MapProps> = ({
   records,
   firmsData,
@@ -57,6 +61,7 @@ export const MapView: React.FC<MapProps> = ({
     return "dark-v11";
   });
 
+  // Dynamically update map style when application theme switches between dark and light modes
   useEffect(() => {
     const observer = new MutationObserver(() => {
       const darkActive = document.documentElement.classList.contains("dark");
@@ -69,6 +74,7 @@ export const MapView: React.FC<MapProps> = ({
     return () => observer.disconnect();
   }, []);
 
+  // Control time-lapse progression playback interval
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isPlaying) {
@@ -85,6 +91,7 @@ export const MapView: React.FC<MapProps> = ({
     return () => clearInterval(interval);
   }, [isPlaying]);
 
+  // Smooth camera transition to selected snapshot coordinates
   useEffect(() => {
     if (selectedRecordId && mapRef.current) {
       const record = records.find((r) => r.id === selectedRecordId);
@@ -99,11 +106,12 @@ export const MapView: React.FC<MapProps> = ({
     }
   }, [selectedRecordId, records]);
 
+  // Slice survey records based on current time-lapse slider position
   const visibleRecords = useMemo(() => {
     if (records.length === 0) return [];
     const sorted = [...records].sort(
       (a, b) =>
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+        new Date(a.timestamp).getTime() - new Date(a.timestamp).getTime(),
     );
     const limitIndex = Math.max(
       1,
@@ -112,6 +120,7 @@ export const MapView: React.FC<MapProps> = ({
     return sorted.slice(0, limitIndex);
   }, [records, timeProgress]);
 
+  // Transform snapshot records into GeoJSON Point features
   const snapsGeoJSON = useMemo(
     () => ({
       type: "FeatureCollection" as const,
@@ -131,6 +140,7 @@ export const MapView: React.FC<MapProps> = ({
     [visibleRecords],
   );
 
+  // Compute fire spread fan vectors based on wind speed and direction for high-risk points
   const spreadConesGeoJSON = useMemo(() => {
     const criticalRecords = visibleRecords.filter(
       (r) => r.final_fire_risk_percent >= 75,
@@ -156,6 +166,7 @@ export const MapView: React.FC<MapProps> = ({
     return { type: "FeatureCollection" as const, features };
   }, [visibleRecords]);
 
+  // Convert NASA FIRMS satellite data into GeoJSON format
   const firmsGeoJSON = useMemo(
     () => ({
       type: "FeatureCollection" as const,
@@ -171,6 +182,7 @@ export const MapView: React.FC<MapProps> = ({
     [firmsData],
   );
 
+  // Convert local risk heatmap grid cells into GeoJSON format
   const riskHeatmapGeoJSON = useMemo(
     () => ({
       type: "FeatureCollection" as const,
@@ -186,6 +198,7 @@ export const MapView: React.FC<MapProps> = ({
     [heatmapData],
   );
 
+  // Styling configurations for vector map layers
   const boundaryLayer: LayerProps = {
     id: "forest-boundaries",
     type: "line",
@@ -410,7 +423,7 @@ export const MapView: React.FC<MapProps> = ({
         )}
       </Map>
 
-      {}
+      {/* Floating time-lapse playback control bar */}
       <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-background/95 backdrop-blur-md p-4 rounded-2xl border border-border-main w-11/12 max-w-lg flex items-center gap-4 shadow-2xl z-10">
         <button
           onClick={() => {

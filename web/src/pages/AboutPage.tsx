@@ -10,6 +10,9 @@ import {
   Trees 
 } from "lucide-react";
 
+/**
+ * About page detailing project mission, problem statement, core architecture, and team members.
+ */
 export function AboutPage() {
   const team = [
     {
@@ -33,9 +36,8 @@ export function AboutPage() {
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar bg-background text-text-main transition-colors duration-300">
       
-      {/* --- HERO / MISSION SECTION --- */}
+      {/* Mission overview header */}
       <section className="relative px-6 pt-24 pb-20 md:pt-32 md:pb-24 overflow-hidden flex flex-col items-center text-center">
-        {/* Subtle background glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-2xl h-[300px] bg-primary/10 blur-[100px] rounded-full pointer-events-none" />
         
         <motion.div
@@ -59,17 +61,16 @@ export function AboutPage() {
         </motion.div>
       </section>
 
-      {/* --- THE PROBLEM & SOLUTION SECTION --- */}
+      {/* Problem and solution breakdown cards */}
       <section className="px-6 py-16 max-w-6xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-20">
           
-          {/* The Problem */}
+          {/* Challenge statement card */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-            // ADDED: hover:-translate-y-2, hover:border-red-500/30, hover:shadow-2xl, transition-all duration-300
             className="bg-surface/30 border border-border-main p-10 md:p-12 rounded-3xl relative overflow-hidden group hover:-translate-y-2 hover:border-red-500/30 hover:shadow-2xl transition-all duration-300"
           >
             <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 blur-[50px] rounded-full group-hover:bg-red-500/10 transition-colors duration-500" />
@@ -82,13 +83,12 @@ export function AboutPage() {
             </p>
           </motion.div>
 
-          {/* The Solution */}
+          {/* Technical solution card */}
           <motion.div
             initial={{ opacity: 0, x: 30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            // ADDED: hover:-translate-y-2, hover:border-primary/50, and boosted the hover shadow
             className="bg-surface/30 border border-primary/20 p-10 md:p-12 rounded-3xl relative overflow-hidden group shadow-[0_0_30px_rgba(16,185,129,0.05)] hover:-translate-y-2 hover:border-primary/50 hover:shadow-[0_0_50px_rgba(16,185,129,0.15)] transition-all duration-300"
           >
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-[50px] rounded-full group-hover:bg-primary/20 transition-colors duration-500" />
@@ -104,7 +104,7 @@ export function AboutPage() {
         </div>
       </section>
 
-      {/* --- MEET THE TEAM SECTION --- */}
+      {/* Team member grid */}
       <section className="px-6 py-24 border-t border-border-main mt-12 bg-surface/10">
         <div className="max-w-7xl mx-auto text-center">
           <div className="inline-flex items-center space-x-2 text-text-muted mb-4">
@@ -113,7 +113,6 @@ export function AboutPage() {
           </div>
           <h2 className="text-3xl md:text-5xl font-black mb-16">Built by conservationists & engineers.</h2>
           
-          {/* Grid updated to lg:grid-cols-4 for 4 team members */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {team.map((member, idx) => (
               <motion.div
@@ -127,7 +126,6 @@ export function AboutPage() {
                 <div className="w-24 h-24 mx-auto bg-surface rounded-full mb-6 overflow-hidden border-2 border-border-main group-hover:border-primary transition-colors">
                   <img src={member.image} alt={member.name} className="w-full h-full object-cover" />
                 </div>
-                {/* Margin bottom increased since roles were removed */}
                 <h3 className="text-xl font-bold mb-6">{member.name}</h3>
                 
                 <div className="flex justify-center space-x-4 text-text-muted">
@@ -140,7 +138,7 @@ export function AboutPage() {
         </div>
       </section>
 
-      {/* --- FOOTER SECTION --- */}
+      {/* Page footer */}
       <footer className="bg-surface/50 border-t border-border-main px-6 py-12 mt-10">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center space-x-3 text-text-main">

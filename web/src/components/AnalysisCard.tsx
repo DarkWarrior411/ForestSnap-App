@@ -16,7 +16,7 @@ interface AnalysisCardProps {
   onSelect: () => void;
 }
 
-// MOVED OUTSIDE: This prevents React from destroying and recreating the DOM node on every render
+// Extracted sub-component to ensure stable React component identity across renders
 const MetricBar = ({
   value,
   max,
@@ -34,6 +34,9 @@ const MetricBar = ({
   </div>
 );
 
+/**
+ * Card component summarizing survey telemetry and risk scores for a single snapshot record.
+ */
 export const AnalysisCard: React.FC<AnalysisCardProps> = ({
   record,
   isSelected,

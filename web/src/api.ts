@@ -7,13 +7,18 @@ import type {
   SystemAlert,
 } from "./types";
 
+// Base URL for the edge backend service
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
+// Axios client instance configured with default timeout
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
 });
 
+/**
+ * Fetch paginated analysis records from the edge backend.
+ */
 export const fetchHistory = async (
   skip: number = 0,
   limit: number = 500,
@@ -29,6 +34,9 @@ export const fetchHistory = async (
   }
 };
 
+/**
+ * Fetch active satellite fire data points from NASA FIRMS integration.
+ */
 export const fetchGlobalFires = async (): Promise<FirmsFirePoint[]> => {
   try {
     const response = await apiClient.get(`${API_BASE_URL}/firms/active-fires`);
@@ -39,6 +47,9 @@ export const fetchGlobalFires = async (): Promise<FirmsFirePoint[]> => {
   }
 };
 
+/**
+ * Fetch aggregated fire risk heatmap grid cells for a geographic bounding region.
+ */
 export const fetchHeatmap = async (
   minLat: number,
   maxLat: number,
@@ -56,6 +67,9 @@ export const fetchHeatmap = async (
   }
 };
 
+/**
+ * Fetch protected forest polygon boundaries in GeoJSON format.
+ */
 export const fetchBoundaries =
   async (): Promise<GeoJsonFeatureCollection | null> => {
     try {
@@ -69,6 +83,9 @@ export const fetchBoundaries =
     }
   };
 
+/**
+ * Fetch high-priority system alerts and cross-referenced satellite warnings.
+ */
 export const fetchAlerts = async (): Promise<SystemAlert[]> => {
   try {
     const response = await apiClient.get(`${API_BASE_URL}/alerts`);
@@ -79,6 +96,9 @@ export const fetchAlerts = async (): Promise<SystemAlert[]> => {
   }
 };
 
+/**
+ * Fetch hourly weather forecasts from the Open-Meteo public API.
+ */
 export const fetchWeatherForecast = async (
   lat: number,
   lon: number,

@@ -12,6 +12,9 @@ import com.example.forestsnap.core.utils.PreferenceManager
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
+/**
+ * Main Activity entry point managing theme preferences and Jetpack Compose content view hierarchy.
+ */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 

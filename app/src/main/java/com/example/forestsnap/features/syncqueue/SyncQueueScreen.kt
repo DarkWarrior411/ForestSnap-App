@@ -61,6 +61,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * Screen rendering pending offline photo upload queue and triggering manual background work syncs.
+ */
 @Composable
 fun SyncQueueScreen(viewModel: SyncQueueViewModel = hiltViewModel()) {
     val queue by viewModel.pendingQueue.collectAsState()
@@ -242,6 +245,7 @@ fun SyncQueueScreen(viewModel: SyncQueueViewModel = hiltViewModel()) {
     }
 }
 
+/** Composable state listener monitoring active network connectivity state. */
 @Composable
 fun rememberConnectivityState(): Boolean {
     val context = LocalContext.current

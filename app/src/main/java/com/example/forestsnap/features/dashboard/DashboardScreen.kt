@@ -62,6 +62,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.forestsnap.core.utils.extractExifLocation
 
+/**
+ * Mobile dashboard screen displaying field telemetry status, photo capture triggers, and location indicators.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
@@ -280,6 +283,7 @@ fun DashboardScreen(
     }
 }
 
+/** Animated pulsing dot component indicating hardware connection and lock state. */
 @Composable
 fun PulsingStatusDot(isLocked: Boolean) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
@@ -304,6 +308,7 @@ fun PulsingStatusDot(isLocked: Boolean) {
     )
 }
 
+/** Card component displaying telemetry metric tiles on the mobile dashboard. */
 @Composable
 fun DashboardCard(
     title: String,
@@ -348,6 +353,7 @@ fun DashboardCard(
     }
 }
 
+/** Warning banner displayed when an uploaded photo lacks valid EXIF location coordinates. */
 @Composable
 fun LocationWarningBanner(onDismiss: () -> Unit) {
     Card(

@@ -15,6 +15,9 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Utility helper accessing device GPS hardware via FusedLocationProviderClient.
+ */
 @Singleton
 class LocationHelper @Inject constructor(
     @ApplicationContext private val context: Context
@@ -22,6 +25,7 @@ class LocationHelper @Inject constructor(
     private val fusedLocationClient: FusedLocationProviderClient =
         LocationServices.getFusedLocationProviderClient(context)
 
+    /** Retrieve high-accuracy current location fix if location permissions are granted. */
     @SuppressLint("MissingPermission")
     suspend fun getCurrentLocation(): Location? {
         val hasFineLocation = ContextCompat.checkSelfPermission(

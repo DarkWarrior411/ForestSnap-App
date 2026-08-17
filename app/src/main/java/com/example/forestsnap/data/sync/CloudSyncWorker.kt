@@ -15,6 +15,9 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 
+/**
+ * Hilt-injected CoroutineWorker performing background upload of offline survey snapshots to the edge API.
+ */
 @HiltWorker
 class CloudSyncWorker @AssistedInject constructor(
     @Assisted context: Context,

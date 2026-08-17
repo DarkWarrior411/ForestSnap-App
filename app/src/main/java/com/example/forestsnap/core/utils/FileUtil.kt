@@ -9,6 +9,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 
+/** Extract latitude and longitude pair from image EXIF metadata if present. */
 fun extractExifLocation(context: Context, uri: Uri): Pair<Double, Double>? {
     return try {
         context.contentResolver.openInputStream(uri)?.use { inputStream ->
@@ -23,6 +24,7 @@ fun extractExifLocation(context: Context, uri: Uri): Pair<Double, Double>? {
     }
 }
 
+/** Copy image stream from a content Uri to local cache storage file. */
 fun copyGalleryUriToFile(context: Context, uri: Uri): File? {
     return try {
         val inputStream = context.contentResolver.openInputStream(uri) ?: return null
@@ -40,6 +42,7 @@ fun copyGalleryUriToFile(context: Context, uri: Uri): File? {
     }
 }
 
+/** Evaluate image sharpness using Laplacian variance edge detection. */
 fun isImageBlurry(file: File, threshold: Double = 100.0): Boolean {
     return try {
         val options = BitmapFactory.Options().apply { inSampleSize = 8 }
@@ -87,6 +90,7 @@ fun isImageBlurry(file: File, threshold: Double = 100.0): Boolean {
     }
 }
 
+/** Compress JPEG photo file while preserving original EXIF metadata tags. */
 fun compressPhotoFile(file: File) {
     try {
         val oldExif = ExifInterface(file.absolutePath)

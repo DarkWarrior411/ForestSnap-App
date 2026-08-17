@@ -9,10 +9,14 @@ import {
   Moon,
 } from "lucide-react";
 
+/**
+ * Root application shell rendering top navigation bar, theme toggle, and nested page outlet.
+ */
 export function Layout() {
   const location = useLocation();
   const [isDark, setIsDark] = useState(true);
 
+  // Synchronize document dark class with active theme state
   useEffect(() => {
     if (isDark) document.documentElement.classList.add("dark");
     else document.documentElement.classList.remove("dark");
@@ -59,7 +63,7 @@ export function Layout() {
             })}
           </nav>
 
-          {}
+          {/* Theme switcher toggle button */}
           <button
             onClick={() => setIsDark(!isDark)}
             className="p-2 rounded-lg border border-border-main text-text-muted hover:text-text-main hover:bg-surface transition-colors"
@@ -73,8 +77,6 @@ export function Layout() {
       <main className="flex-1 flex flex-col relative min-h-0 overflow-y-auto custom-scrollbar pb-16 md:pb-0">
         <Outlet />
       </main>
-
-      {}
     </div>
   );
 }

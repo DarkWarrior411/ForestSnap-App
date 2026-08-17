@@ -4,10 +4,12 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy import Column, Integer, Float, DateTime
 from datetime import datetime, timezone
 
+# Database connection URL, defaulting to asynchronous SQLite
 SQLALCHEMY_DATABASE_URL = os.getenv(
     "DATABASE_URL", "sqlite+aiosqlite:///./forestsnap.db"
 )
 
+# Async database engine initialization
 engine = create_async_engine(
     SQLALCHEMY_DATABASE_URL,
     connect_args=(
@@ -15,12 +17,16 @@ engine = create_async_engine(
     ),
 )
 
+# Asynchronous session factory for database transactions
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
+# Declarative base class for ORM models
 Base = declarative_base()
 
 
 class AnalysisRecord(Base):
+    """ORM model storing environmental telemetry and computer vision risk assessments."""
+
     __tablename__ = "analysis_records"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -37,5 +43,6 @@ class AnalysisRecord(Base):
 
 
 async def init_db():
+    """Create database tables if they do not already exist."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

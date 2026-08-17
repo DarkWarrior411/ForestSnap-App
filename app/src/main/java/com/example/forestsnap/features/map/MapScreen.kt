@@ -90,6 +90,9 @@ import com.mapbox.maps.plugin.compass.compass
 import com.mapbox.maps.plugin.locationcomponent.location
 import com.mapbox.maps.plugin.logo.logo
 
+/**
+ * Native Mapbox screen displaying risk heatmaps, forest reserves, FIRMS fires, and wind spread fan cones.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen(viewModel: DashboardViewModel) {
@@ -511,6 +514,7 @@ fun MapScreen(viewModel: DashboardViewModel) {
     }
 }
 
+/** Calculate polygon vertex points defining fire spread fan vectors based on wind direction and velocity. */
 fun getSpreadConePoints(center: Point, windSpeed: Double, windDirOrigin: Int?): List<Point> {
     val baseRadius = 500.0
     val earthRadius = 6378137.0

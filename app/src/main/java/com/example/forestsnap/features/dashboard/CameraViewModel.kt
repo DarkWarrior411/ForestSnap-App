@@ -39,6 +39,9 @@ import java.io.File
 import java.util.Calendar
 import javax.inject.Inject
 
+/**
+ * ViewModel for camera photo processing, blur detection, light sensor anti-spoofing, and ML Kit verification.
+ */
 @HiltViewModel
 class CameraViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -55,6 +58,7 @@ class CameraViewModel @Inject constructor(
     private val _uploadStatus = MutableStateFlow<String?>(null)
     val uploadStatus: StateFlow<String?> = _uploadStatus.asStateFlow()
 
+    // Polls GPS status every 2 seconds
     val isLocationReady: StateFlow<Boolean> = flow {
         while (true) {
             emit(locationHelper.getCurrentLocation() != null)
@@ -63,12 +67,12 @@ class CameraViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     init {
-
         lightSensor?.let {
             sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
         }
     }
 
+    /** Validate photo blur, ambient lighting, GPS accuracy, and nature ML labels before queueing for sync. */
     fun processAndSavePhotoOptimistically(photoFile: File) {
         CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
             try {
@@ -128,6 +132,7 @@ class CameraViewModel @Inject constructor(
         }
     }
 
+    /** Perform on-device ML Kit image labeling to verify vegetation content. */
     private suspend fun verifyForestContent(photoFile: File): Boolean {
         return try {
             val image = InputImage.fromFilePath(context, Uri.fromFile(photoFile))

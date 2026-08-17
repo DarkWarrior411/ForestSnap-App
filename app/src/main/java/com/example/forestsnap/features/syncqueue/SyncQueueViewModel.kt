@@ -8,6 +8,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
+/**
+ * ViewModel holding StateFlow of pending offline snapshots from SyncSnapRepository.
+ */
 @HiltViewModel
 class SyncQueueViewModel @Inject constructor(
     repository: SyncSnapRepository

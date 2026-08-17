@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from "react";
+import { Component, ErrorInfo, ReactNode } from "react";
 import { MapPinOff, RefreshCw } from "lucide-react";
 
 interface Props {
@@ -11,6 +11,9 @@ interface State {
   errorMsg: string;
 }
 
+/**
+ * React Error Boundary component capturing unhandled UI exceptions and presenting a fallback state.
+ */
 export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,

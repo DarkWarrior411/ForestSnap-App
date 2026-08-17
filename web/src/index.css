@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
+/* Design system tokens and theme color variables */
 :root {
-  /* LIGHT MODE (Default) */
+  /* Light mode color tokens */
   --bg-color: #f8fafc;
   --surface-color: #ffffff;
   --surface-border: #e2e8f0;
@@ -11,7 +12,7 @@
 }
 
 .dark {
-  /* DARK MODE */
+  /* Dark mode color tokens */
   --bg-color: #022c22;
   --surface-color: #064e3b;
   --surface-border: #065f46;
@@ -20,6 +21,7 @@
   --accent-primary: #10b981;
 }
 
+/* Tailwind theme mapping */
 @theme {
   --color-background: var(--bg-color);
   --color-surface: var(--surface-color);
@@ -40,7 +42,7 @@ body {
     color 0.3s ease;
 }
 
-/* Reusable UI Utilities using dynamic variables */
+/* Reusable Glassmorphism UI panel utility */
 @layer components {
   .glass-panel {
     @apply bg-surface/50 backdrop-blur-xl border border-border-main shadow-xl;

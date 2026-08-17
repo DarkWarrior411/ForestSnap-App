@@ -10,6 +10,9 @@ import {
   Trees 
 } from "lucide-react";
 
+/**
+ * Promotional showcase page highlighting mobile Android application capabilities and APK download links.
+ */
 export function AppPromoPage() {
   const features = [
     {
@@ -27,10 +30,10 @@ export function AppPromoPage() {
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar bg-background text-text-main transition-colors duration-300 flex flex-col">
       
-      {/* --- HERO / PROMO SECTION --- */}
+      {/* Mobile app feature overview and APK download links */}
       <section className="flex-1 px-6 py-12 md:py-24 flex flex-col lg:flex-row items-center justify-center gap-16 max-w-7xl mx-auto w-full">
         
-        {/* Left Column: Text & CTAs */}
+        {/* Mobile features and download buttons */}
         <motion.div
           initial={{ opacity: 0, x: -30 }}
           animate={{ opacity: 1, x: 0 }}
@@ -69,7 +72,7 @@ export function AppPromoPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-center gap-6 pt-8 border-t border-border-main">
-            {/* Primary Download Button */}
+            {/* APK download button */}
             <a
               href="/ForestSnap.apk"
               download
@@ -79,7 +82,7 @@ export function AppPromoPage() {
               <span>Download APK</span>
             </a>
 
-            {/* Desktop-to-Mobile QR Bridge (Hidden on tiny mobile screens) */}
+            {/* Installation QR code badge */}
             <div className="hidden sm:flex items-center gap-4 px-5 py-3 bg-surface border border-border-main rounded-xl shadow-sm">
               <div className="p-2 bg-white rounded-lg">
                 <QrCode size={32} className="text-zinc-900" />
@@ -92,19 +95,16 @@ export function AppPromoPage() {
           </div>
         </motion.div>
 
-        {/* Right Column: Dynamic Phone Mockup */}
+        {/* Interactive smartphone interface preview */}
         <motion.div
           initial={{ opacity: 0, x: 30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
           className="flex-1 flex justify-center w-full lg:justify-end"
         >
-          {/* Phone Hardware Container */}
           <div className="w-[300px] h-[600px] bg-zinc-950 rounded-[3rem] border-[10px] border-zinc-900 shadow-2xl overflow-hidden relative flex flex-col ring-1 ring-border-main shadow-primary/10">
-            {/* Phone Notch */}
             <div className="absolute top-0 inset-x-0 h-6 bg-zinc-900 rounded-b-2xl w-36 mx-auto z-30" />
             
-            {/* App UI: Header bar */}
             <div className="pt-10 pb-4 px-6 bg-zinc-950/80 backdrop-blur-md z-20 flex justify-between items-center text-white border-b border-white/10">
               <span className="font-bold text-sm flex items-center gap-2">
                 <Trees size={16} className="text-primary" />
@@ -116,20 +116,16 @@ export function AppPromoPage() {
               </div>
             </div>
 
-            {/* App UI: Camera Viewfinder */}
             <div className="flex-1 relative bg-zinc-900 overflow-hidden flex flex-col justify-between">
-              {/* Fake camera feed background (using an Unsplash forest image via standard HTML) */}
               <div 
                 className="absolute inset-0 opacity-60 bg-cover bg-center" 
                 style={{ backgroundImage: "url('https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=800&auto=format&fit=crop')" }}
               />
               
-              {/* Viewfinder Target */}
               <div className="absolute inset-10 border border-primary/40 rounded-2xl flex items-center justify-center bg-primary/5">
                 <Scan size={64} className="text-primary/70 animate-pulse" />
               </div>
 
-              {/* Edge AI Active Toast */}
               <div className="absolute bottom-6 inset-x-6 bg-zinc-950/90 backdrop-blur-md rounded-xl p-3 border border-white/10 flex items-center gap-3 text-white shadow-lg">
                 <div className="p-1.5 bg-primary/20 rounded-md">
                   <Cpu size={16} className="text-primary" />
@@ -141,17 +137,13 @@ export function AppPromoPage() {
               </div>
             </div>
 
-            {/* App UI: Bottom Navigation / Shutter */}
             <div className="h-28 bg-zinc-950 flex items-center justify-center gap-10 pb-4 z-20">
-              {/* Gallery icon fake */}
               <div className="w-10 h-10 rounded-lg border border-white/20 bg-white/5" />
               
-              {/* Shutter Button */}
               <div className="w-16 h-16 rounded-full bg-white/10 border-[3px] border-zinc-400 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors">
                 <div className="w-12 h-12 rounded-full bg-white shadow-inner" />
               </div>
 
-              {/* Sync queue icon fake */}
               <div className="w-10 h-10 rounded-full bg-surface border border-white/10 flex items-center justify-center relative">
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-[8px] font-bold text-white rounded-full flex items-center justify-center">3</span>
               </div>
@@ -160,7 +152,7 @@ export function AppPromoPage() {
         </motion.div>
       </section>
 
-      {/* --- FOOTER SECTION --- */}
+      {/* Footer link section */}
       <footer className="bg-surface/50 border-t border-border-main px-6 py-12 mt-auto">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center space-x-3 text-text-main">

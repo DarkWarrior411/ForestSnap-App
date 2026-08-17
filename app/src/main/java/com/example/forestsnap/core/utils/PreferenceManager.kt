@@ -11,8 +11,12 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
+// DataStore delegate property for app settings
 val Context.dataStore by preferencesDataStore(name = "settings")
 
+/**
+ * DataStore repository managing persistent user preferences such as theme, compression, and offline toggles.
+ */
 @Singleton
 class PreferenceManager @Inject constructor(
     @ApplicationContext context: Context

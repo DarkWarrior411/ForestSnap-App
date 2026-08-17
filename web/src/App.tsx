@@ -6,10 +6,12 @@ import { AboutPage } from "./pages/AboutPage";
 import { AppPromoPage } from "./pages/AppPromoPage";
 import { Loader2 } from "lucide-react";
 
+// Lazy-loaded Dashboard module for route-based code splitting
 const Dashboard = lazy(() =>
   import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })),
 );
 
+// Fallback spinner component rendered while the heavy Dashboard bundle loads
 const DashboardLoader = () => (
   <div className="flex-1 flex flex-col items-center justify-center h-full text-emerald-400 gap-4">
     <Loader2 size={40} className="animate-spin" />
@@ -19,6 +21,9 @@ const DashboardLoader = () => (
   </div>
 );
 
+/**
+ * Root Application component configuring client-side routes and lazy loading.
+ */
 function App() {
   return (
     <BrowserRouter>

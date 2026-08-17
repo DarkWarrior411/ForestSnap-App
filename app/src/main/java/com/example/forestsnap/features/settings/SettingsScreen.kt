@@ -39,6 +39,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 
+/**
+ * Settings configuration screen for managing app themes, image compression, location rules, and offline modes.
+ */
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val selectedTheme by viewModel.themeFlow.collectAsState(initial = "System Default")
@@ -208,6 +211,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     }
 }
 
+/** Section header text label for settings groupings. */
 @Composable
 fun SettingsSectionTitle(title: String) {
     Text(
@@ -219,6 +223,7 @@ fun SettingsSectionTitle(title: String) {
     )
 }
 
+/** Toggle switch item row component for preference options. */
 @Composable
 fun SettingsToggleItem(
     title: String,

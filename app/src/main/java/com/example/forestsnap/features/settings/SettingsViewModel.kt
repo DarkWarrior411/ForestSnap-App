@@ -7,6 +7,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * ViewModel managing user preferences state mutations via PreferenceManager.
+ */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val preferenceManager: PreferenceManager

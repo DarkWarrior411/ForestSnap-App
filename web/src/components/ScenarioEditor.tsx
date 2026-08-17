@@ -14,6 +14,9 @@ interface ScenarioEditorProps {
   onSimulate: (simulatedRecord: AnalysisRecord) => void;
 }
 
+/**
+ * Interactive playground component allowing real-time parameter tuning to forecast fire risk scenarios.
+ */
 export const ScenarioEditor: React.FC<ScenarioEditorProps> = ({
   baseRecord,
   onSimulate,
@@ -33,12 +36,10 @@ export const ScenarioEditor: React.FC<ScenarioEditorProps> = ({
     onSimulateRef.current = onSimulate;
   }, [onSimulate]);
 
-  // Only auto-sync with baseRecord if the user HAS NOT touched the sliders
+  // Synchronize simulation sliders with active snapshot record if un-modified by user
   useEffect(() => {
     if (baseRecord && !isModified) {
       setSimState((prev) => {
-        // If the values are already identical, return the previous state object directly.
-        // This tells React NOT to trigger a re-render.
         if (
           prev.temperature_c === baseRecord.temperature_c &&
           prev.humidity_percent === baseRecord.humidity_percent &&
@@ -59,6 +60,7 @@ export const ScenarioEditor: React.FC<ScenarioEditorProps> = ({
     }
   }, [baseRecord, isModified]);
 
+  // Re-calculate simulated fire risk score when environmental input values change
   useEffect(() => {
     const risk = Math.max(
       0,
@@ -83,12 +85,12 @@ export const ScenarioEditor: React.FC<ScenarioEditorProps> = ({
   }, [simState, baseRecord]);
 
   const handleChange = (key: keyof typeof simState, value: number) => {
-    setIsModified(true); // Decouple from live data stream updates
+    setIsModified(true);
     setSimState((prev) => ({ ...prev, [key]: value }));
   };
 
   const resetToBase = () => {
-    setIsModified(false); // Re-couple to live data
+    setIsModified(false);
   };
 
   return (

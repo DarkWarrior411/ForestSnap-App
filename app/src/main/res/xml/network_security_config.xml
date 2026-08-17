@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- By default, block all unencrypted traffic in production -->
+    <!-- Block unencrypted cleartext traffic by default -->
     <base-config cleartextTrafficPermitted="false" />
 
-    <!-- Safely punch holes ONLY for your local development environments -->
+    <!-- Local development and physical testing domain exceptions -->
     <domain-config cleartextTrafficPermitted="true">
-        <!-- Android Emulator -->
+        <!-- Android emulator loopback -->
         <domain includeSubdomains="true">10.0.2.2</domain>
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">127.0.0.1</domain>
 
-        <!-- Physical Device Testing (Add your laptop's current IPv4 address here) -->
+        <!-- Local physical network test endpoints -->
         <domain includeSubdomains="true">10.20.34.117</domain>
         <domain includeSubdomains="true">192.168.1.100</domain>
     </domain-config>

@@ -1,10 +1,13 @@
 import random
+import asyncio
 from datetime import datetime, timedelta, timezone
-from sqlalchemy.orm import Session
-from database import engine, Base, SessionLocal, AnalysisRecord
+from sqlalchemy import delete
+from database import engine, Base, AsyncSessionLocal, AnalysisRecord
 
+# Initialize table metadata synchronously if needed
 Base.metadata.create_all(bind=engine)
 
+# Geographic regions and environmental parameters for mock data generation
 REGIONS = [
     {
         "name": "Bengaluru & Western Ghats",
@@ -65,7 +68,7 @@ REGIONS = [
 
 
 def calculate_risk(fuel_load, dryness_tier, temp, humidity, wind_speed):
-    """Replicates the exact math from server.py to ensure UI integrity"""
+    """Calculate composite fire risk index based on visual and environmental telemetry."""
     base_visual_risk = (dryness_tier / 3.0) * 100
     temp_mod = max(0, (temp - 20) * 1.5)
     hum_mod = max(0, (50 - humidity) * 0.8)
@@ -79,13 +82,8 @@ def calculate_risk(fuel_load, dryness_tier, temp, humidity, wind_speed):
     return round(min(max(final_risk, 0.0), 100.0), 2)
 
 
-import asyncio
-from sqlalchemy import delete
-
-
 async def seed_database():
-    from database import engine, Base, AsyncSessionLocal
-
+    """Populate the database with realistic global survey data for testing."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

@@ -30,6 +30,9 @@ import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
 import com.mapbox.maps.plugin.gestures.addOnMapClickListener
 
+/**
+ * Screen providing an interactive Mapbox map picker for assigning manual GPS coordinates to a photo.
+ */
 @Composable
 fun LocationPickerScreen(
     photoUri: Uri,
@@ -41,7 +44,7 @@ fun LocationPickerScreen(
         AndroidView(
             factory = { ctx ->
                 MapView(ctx).apply {
-                    // FIXED: Use the property accessor instead of deprecated getMapboxMap()
+                    // Use property accessor for mapboxMap style configuration
                     mapboxMap.loadStyle(Style.SATELLITE_STREETS)
                     mapboxMap.addOnMapClickListener { point ->
                         selectedPoint = point

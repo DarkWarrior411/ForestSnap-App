@@ -10,8 +10,11 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 
+/**
+ * Public landing page introducing the ForestSnap platform features and conservation pipeline.
+ */
 export function LandingPage() {
-  // --- REVERTED TO ORIGINAL FEATURES ---
+  // Key feature highlights
   const features = [
     {
       icon: Cpu,
@@ -30,7 +33,7 @@ export function LandingPage() {
     },
   ];
 
-  // --- KEPT THE UPDATED PIPELINE TO REFLECT YOUR ARCHITECTURE ---
+  // Conservation data processing pipeline steps
   const pipelineSteps = [
     {
       icon: Smartphone,
@@ -52,12 +55,9 @@ export function LandingPage() {
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar bg-background text-text-main transition-colors duration-300">
       
-      {/* --- HERO SECTION --- */}
+      {/* Hero section */}
       <section className="relative px-6 pt-24 pb-24 md:pt-32 md:pb-40 flex flex-col items-center text-center overflow-hidden">
-        {/* Subtle grid background pattern */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
-        
-        {/* Glowing orb effect */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-[400px] bg-primary/20 blur-[120px] rounded-full pointer-events-none opacity-50 dark:opacity-100" />
 
         <motion.div
@@ -102,7 +102,7 @@ export function LandingPage() {
         </motion.div>
       </section>
 
-      {/* --- FEATURES SECTION (Engineered for the field) --- */}
+      {/* Feature grid section */}
       <section className="px-6 py-24 bg-surface/30 border-t border-border-main">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">
@@ -142,7 +142,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* --- HOW IT WORKS (PIPELINE) SECTION --- */}
+      {/* Data pipeline sequence section */}
       <section className="px-6 py-24 border-t border-border-main relative overflow-hidden">
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="mb-16 text-center md:text-left">
@@ -155,7 +155,6 @@ export function LandingPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
-            {/* Connecting line for desktop */}
             <div className="hidden md:block absolute top-12 left-[15%] right-[15%] h-[2px] bg-gradient-to-r from-primary/10 via-primary/50 to-primary/10" />
 
             {pipelineSteps.map((step, idx) => {
@@ -184,7 +183,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* --- FOOTER SECTION --- */}
+      {/* Landing page footer */}
       <footer className="bg-surface/50 border-t border-border-main px-6 py-12 mt-10">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center space-x-3 text-text-main">

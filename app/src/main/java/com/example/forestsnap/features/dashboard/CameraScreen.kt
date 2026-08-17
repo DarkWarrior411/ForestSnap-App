@@ -57,6 +57,9 @@ import java.io.File
 import java.util.concurrent.Executor
 import kotlin.math.roundToInt
 
+/**
+ * Camera screen Composable handling permission requests, CameraX preview binding, and photo capture.
+ */
 @SuppressLint("MissingPermission")
 @Composable
 fun CameraScreen(
@@ -115,6 +118,7 @@ fun CameraScreen(
     }
 }
 
+/** Composable rendering hardware CameraX preview viewport and capture controls. */
 @Composable
 fun CameraPreviewView(
     context: Context,
@@ -248,6 +252,7 @@ fun CameraPreviewView(
     }
 }
 
+/** Execute image capture callback on background thread pool. */
 private fun takePhoto(
     imageCapture: ImageCapture,
     context: Context,

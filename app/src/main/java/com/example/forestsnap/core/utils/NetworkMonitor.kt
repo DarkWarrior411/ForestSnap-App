@@ -12,10 +12,14 @@ import kotlinx.coroutines.flow.callbackFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Singleton service monitoring system connectivity status and emitting real-time online/offline updates.
+ */
 @Singleton
 class NetworkMonitor @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
+    /** Reactive Flow emitting true when internet connectivity is available, false otherwise. */
     val isOnline: Flow<Boolean> = callbackFlow {
         val connectivityManager =
             context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager

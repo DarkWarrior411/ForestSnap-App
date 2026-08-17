@@ -31,10 +31,13 @@ from sse_starlette.sse import EventSourceResponse
 import json
 from fastapi import Request
 
+# FastAPI application initialization
 app = FastAPI(title="ForestSnap Edge Server")
 
+# Set of active SSE client connection queues for real-time streaming
 active_connections = set()
 
+# Enable CORS for cross-origin web portal communication
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -43,11 +46,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# External service credentials and model paths
 WEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "YOUR_API_KEY_HERE")
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
 SEG_MODEL_PATH = "models/deeplabv3_mobile.onnx"
 CLS_MODEL_PATH = "models/efficientnet_v2.onnx"
 
+# Load ONNX inference sessions for vegetation segmentation and dryness classification
 try:
     seg_session = ort.InferenceSession(
         SEG_MODEL_PATH, providers=["CPUExecutionProvider"]
@@ -62,6 +67,7 @@ except Exception as e:
 
 
 class AnalysisResponse(BaseModel):
+    """Pydantic model representing image analysis and risk assessment output."""
     fuel_load_score: float
     dryness_risk_tier: int
     temperature_c: float
@@ -71,10 +77,12 @@ class AnalysisResponse(BaseModel):
     final_fire_risk_percent: float
 
 
+# Dedicated thread pool for CPU-bound computer vision inference tasks
 executor = ThreadPoolExecutor(max_workers=os.cpu_count() or 4)
 
 
 def preprocess_image(img: np.ndarray, target_size: tuple):
+    """Resize, normalize, and transpose image dimensions for ONNX model input."""
     img_resized = cv2.resize(img, target_size)
     img_float = img_resized.astype(np.float32) / 255.0
     mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
@@ -85,12 +93,14 @@ def preprocess_image(img: np.ndarray, target_size: tuple):
 
 
 def decode_image(image_bytes: bytes):
+    """Convert raw byte stream into an RGB OpenCV image array."""
     np_arr = np.frombuffer(image_bytes, np.uint8)
     img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
     return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
 
 async def fetch_weather(lat: float, lon: float):
+    """Fetch current weather conditions from OpenWeather API with fallback defaults."""
     url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={WEATHER_API_KEY}&units=metric"
     async with httpx.AsyncClient() as client:
         resp = await client.get(url)
@@ -106,6 +116,7 @@ async def fetch_weather(lat: float, lon: float):
 
 
 async def get_db():
+    """Dependency provider yielding an asynchronous database session."""
     async with AsyncSessionLocal() as session:
         yield session
 
@@ -113,7 +124,7 @@ async def get_db():
 async def dispatch_webhook_alert(
     record_id: int, lat: float, lon: float, risk: float, fuel: float
 ):
-    """Fires an alert to a configured webhook (e.g., Slack, Teams) without blocking the main thread."""
+    """Send an urgent notification payload to an external Slack webhook."""
     if not SLACK_WEBHOOK_URL:
         return
 
@@ -139,6 +150,7 @@ async def dispatch_webhook_alert(
 
 @app.on_event("startup")
 async def on_startup():
+    """Initialize database tables during application startup."""
     from database import init_db
 
     await init_db()
@@ -146,19 +158,19 @@ async def on_startup():
 
 @app.get("/health")
 async def health_check():
+    """Return operational health status of the edge server."""
     return {"status": "online"}
 
 
 @app.get("/stream")
 async def stream_updates(request: Request):
-    """Maintains an open connection with the client and pushes new records."""
+    """Establish a Server-Sent Events (SSE) stream for real-time analysis updates."""
     queue = asyncio.Queue()
     active_connections.add(queue)
 
     async def event_generator():
         try:
             while True:
-
                 if await request.is_disconnected():
                     break
 
@@ -185,12 +197,14 @@ async def analyze_environment(
     image: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
 ):
+    """Process an uploaded snapshot to compute fuel load, dryness, weather, and fire risk."""
     try:
         image_bytes = await image.read()
         img_array = decode_image(image_bytes)
         seg_input = preprocess_image(img_array, (256, 256))
         loop = asyncio.get_running_loop()
 
+        # Execute semantic segmentation ONNX model to extract fuel vegetation pixels
         seg_out = await loop.run_in_executor(
             executor,
             lambda: seg_session.run(
@@ -203,6 +217,7 @@ async def analyze_environment(
         total_pixels = 256 * 256
         fuel_load_score = (fuel_pixels / total_pixels) * 100
 
+        # Execute classification ONNX model to evaluate fuel dryness risk tier
         cls_input = preprocess_image(img_array, (224, 224))
         cls_out = await loop.run_in_executor(
             executor,
@@ -212,8 +227,10 @@ async def analyze_environment(
         )
         dryness_risk_tier = int(np.argmax(cls_out[0]))
 
+        # Retrieve live weather data for geographic coordinate
         weather = await fetch_weather(lat or 0.0, lon or 0.0)
 
+        # Compute composite fire risk index combining visual and meteorological metrics
         base_visual_risk = (dryness_risk_tier / 3.0) * 100
         temp_mod = max(0, (weather["temp"] - 20) * 1.5)
         hum_mod = max(0, (50 - weather["humidity"]) * 0.8)
@@ -226,6 +243,7 @@ async def analyze_environment(
         )
         final_risk = min(max(final_risk, 0.0), 100.0)
 
+        # Persist analysis results in database
         new_record = AnalysisRecord(
             latitude=lat,
             longitude=lon,
@@ -241,6 +259,7 @@ async def analyze_environment(
         await db.commit()
         await db.refresh(new_record)
 
+        # Trigger background webhook alert if fire risk exceeds critical threshold
         if final_risk >= 80.0:
             background_tasks.add_task(
                 dispatch_webhook_alert,
@@ -251,6 +270,7 @@ async def analyze_environment(
                 fuel=new_record.fuel_load_score,
             )
 
+        # Broadcast newly created record to connected SSE clients
         record_dict = {
             "id": new_record.id,
             "timestamp": new_record.timestamp.isoformat(),
@@ -285,7 +305,7 @@ async def analyze_environment(
 async def get_history(
     skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)
 ):
-
+    """Retrieve paginated historical analysis records ordered by descending timestamp."""
     query = (
         select(AnalysisRecord)
         .order_by(AnalysisRecord.timestamp.desc())
@@ -304,7 +324,7 @@ async def get_history_region(
     maxLon: float,
     db: AsyncSession = Depends(get_db),
 ):
-
+    """Fetch analysis records contained within specified bounding box coordinates."""
     query = select(AnalysisRecord).filter(
         and_(
             AnalysisRecord.latitude >= minLat,
@@ -326,6 +346,7 @@ async def get_heatmap_region(
     grid_size: float = 0.01,
     db: AsyncSession = Depends(get_db),
 ):
+    """Aggregate survey records into spatial grid cells to produce map heatmap data."""
     query = select(AnalysisRecord).filter(
         and_(
             AnalysisRecord.latitude >= minLat,
@@ -361,6 +382,7 @@ async def get_heatmap_region(
 
 @app.get("/forests/boundaries")
 async def get_forest_boundaries():
+    """Return GeoJSON feature collection defining protected forest reserve polygons."""
     return {
         "type": "FeatureCollection",
         "features": [
@@ -387,6 +409,7 @@ async def get_forest_boundaries():
     }
 
 
+# NASA FIRMS satellite active fire integration settings and cache storage
 FIRMS_MAP_KEY = os.getenv("FIRMS_MAP_KEY", "59f97dbb35f3ef8e70d51fff95d18a7b")
 firms_cache = {"data": [], "last_fetched": 0}
 CACHE_TTL = 600
@@ -394,6 +417,7 @@ CACHE_TTL = 600
 
 @app.get("/firms/active-fires")
 async def get_global_fires():
+    """Fetch global satellite thermal anomaly data from NASA FIRMS API with caching."""
     current_time = time.time()
     if current_time - firms_cache["last_fetched"] < CACHE_TTL and firms_cache["data"]:
         return firms_cache["data"]
@@ -434,6 +458,7 @@ async def get_global_fires():
 
 
 def haversine_distance(lat1, lon1, lat2, lon2):
+    """Calculate great-circle distance between two geographic coordinates in kilometers."""
     R = 6371.0
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
@@ -449,6 +474,7 @@ def haversine_distance(lat1, lon1, lat2, lon2):
 
 @app.get("/alerts")
 async def get_system_alerts(db: AsyncSession = Depends(get_db)):
+    """Evaluate local survey data and NASA thermal anomalies to generate prioritized alerts."""
     alerts = []
     time_threshold = datetime.now(timezone.utc) - timedelta(hours=72)
 
@@ -500,6 +526,7 @@ async def get_system_alerts(db: AsyncSession = Depends(get_db)):
 
 @app.get("/weather/current")
 async def get_current_weather(lat: float, lon: float):
+    """Retrieve current weather conditions for given coordinates."""
     return await fetch_weather(lat, lon)
 
 

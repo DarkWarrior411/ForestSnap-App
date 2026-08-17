@@ -11,6 +11,7 @@ import retrofit2.http.Part
 import retrofit2.http.Query
 import retrofit2.http.Streaming
 
+/** Response model returned after edge computer vision model analysis. */
 data class AnalysisResponse(
     val fuel_load_score: Double,
     val dryness_risk_tier: Int,
@@ -21,9 +22,10 @@ data class AnalysisResponse(
     val final_fire_risk_percent: Double
 )
 
+/** Historical telemetry record returned by server history endpoints. */
 data class HistoryResponse(
-    val id: Int,               // FIXED: Added missing server field
-    val timestamp: String,     // FIXED: Added missing server field
+    val id: Int,
+    val timestamp: String,
     val latitude: Double,
     val longitude: Double,
     val fuel_load_score: Double,
@@ -35,6 +37,7 @@ data class HistoryResponse(
     val final_fire_risk_percent: Double
 )
 
+/** Weather proxy response payload from OpenWeather integration. */
 data class WeatherProxyResponse(
     val temp: Double,
     val humidity: Int,
@@ -42,6 +45,7 @@ data class WeatherProxyResponse(
     val wind_direction: Int
 )
 
+/** Heatmap grid cell item for spatial risk aggregation. */
 data class HeatmapSquare(
     val center_lat: Double,
     val center_lon: Double,
@@ -50,6 +54,7 @@ data class HeatmapSquare(
     val grid_size: Double
 )
 
+/** NASA FIRMS satellite fire anomaly coordinate item. */
 data class FirmsFirePoint(
     val latitude: Double,
     val longitude: Double,
@@ -57,12 +62,13 @@ data class FirmsFirePoint(
     val confidence: String
 )
 
+/** GeoJSON feature collection models for forest reserve boundary polygons. */
 data class FeatureCollection(val features: List<Feature>)
 data class Feature(val properties: Properties, val geometry: Geometry)
 data class Properties(val name: String, val type: String)
 data class Geometry(val type: String, val coordinates: List<List<List<Double>>>)
 
-// Added System Alert model
+/** High-priority alert payload definition. */
 data class SystemAlert(
     val id: String,
     val type: String,
@@ -73,6 +79,7 @@ data class SystemAlert(
     val lon: Double
 )
 
+/** Retrofit REST API interface for communicating with the edge Python server. */
 interface ForestSnapApi {
     @GET("history")
     suspend fun getHistoricalData(): List<HistoryResponse>

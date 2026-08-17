@@ -47,7 +47,7 @@ import {
 } from "lucide-react";
 import type { AnalysisRecord } from "../types";
 
-// Skeleton Component for Feed
+// Skeleton component displayed while telemetry logs load
 const FeedSkeleton = () => (
   <div className="space-y-4">
     {[1, 2, 3, 4].map((i) => (
@@ -59,17 +59,20 @@ const FeedSkeleton = () => (
   </div>
 );
 
+/**
+ * Main command dashboard containing map view, analysis log feed, analytics, simulation, and audit tools.
+ */
 export function Dashboard() {
   const queryClient = useQueryClient();
   const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-  // --- UI STATE ---
+  // Active dashboard tab state
   const [activeTab, setActiveTab] = useState<
     "feed" | "analytics" | "sandbox" | "audit"
   >("feed");
   const [selectedRecordId, setSelectedRecordId] = useState<number | null>(null);
 
-  // --- FILTER STATE ---
+  // Telemetry filtering state
   const [filterRisk, setFilterRisk] = useState<
     "All" | "Low" | "Moderate" | "High" | "Critical"
   >("All");
@@ -88,7 +91,7 @@ export function Dashboard() {
     activeTabRef.current = activeTab;
   }, [activeTab]);
 
-  // --- REACT QUERY DATA FETCHING ---
+  // Fetch telemetry history via React Query
   const {
     data: records = [],
     isLoading: recordsLoading,
@@ -100,22 +103,28 @@ export function Dashboard() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Fetch NASA satellite active fire points
   const { data: firmsData = [] } = useQuery({
     queryKey: ["firms"],
     queryFn: fetchGlobalFires,
     refetchInterval: 60000,
   });
+
+  // Fetch protected forest boundary geometries
   const { data: boundaries = null } = useQuery({
     queryKey: ["boundaries"],
     queryFn: fetchBoundaries,
     staleTime: Infinity,
   });
+
+  // Fetch system alert notifications
   const { data: alerts = [] } = useQuery({
     queryKey: ["alerts"],
     queryFn: fetchAlerts,
     refetchInterval: 10000,
   });
 
+  // Fetch spatial risk heatmap grid for current dataset bounds
   const { data: heatmapData = [] } = useQuery({
     queryKey: ["heatmap", records.length],
     queryFn: () => {
@@ -137,7 +146,7 @@ export function Dashboard() {
     enabled: records.length > 0,
   });
 
-  // --- LIVE SSE STREAM INTEGRATION ---
+  // Connect to server Server-Sent Events (SSE) stream for live record updates
   useEffect(() => {
     let eventSource: EventSource;
 
@@ -178,7 +187,7 @@ export function Dashboard() {
       setSelectedRecordId(records[0].id);
   }, [records, selectedRecordId]);
 
-  // --- FILTERS & COMPUTATIONS ---
+  // Apply risk level and timeframe filters to telemetry records
   const filteredRecords = useMemo(() => {
     return records.filter((r) => {
       if (filterRisk === "Low" && r.final_fire_risk_percent >= 25) return false;
@@ -205,10 +214,11 @@ export function Dashboard() {
     });
   }, [records, filterRisk, filterTime]);
 
+  // Virtualized list manager for high-performance log feed rendering
   const rowVirtualizer = useVirtualizer({
     count: filteredRecords.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 260, // Baseline estimate, will dynamically adjust
+    estimateSize: () => 260,
     overscan: 3,
   });
 
@@ -225,7 +235,7 @@ export function Dashboard() {
       : filteredRecords;
   }, [activeTab, virtualRecord, filteredRecords]);
 
-  // --- ANALYTICS ---
+  // Compute risk tier distribution for analytics charts
   const riskDistribution = useMemo(() => {
     const dist = { Low: 0, Moderate: 0, High: 0, Critical: 0 };
     filteredRecords.forEach((r) => {
@@ -242,6 +252,7 @@ export function Dashboard() {
     ];
   }, [filteredRecords]);
 
+  // Normalize metrics for radar visualization
   const radarData = useMemo(() => {
     if (!selectedRecord) return [];
     return [
@@ -259,6 +270,7 @@ export function Dashboard() {
     ];
   }, [selectedRecord]);
 
+  // Format 48-hour forecast trends for chart display
   const forecastChartData = useMemo(() => {
     if (!forecastData?.hourly) return [];
     return forecastData.hourly.time.slice(0, 48).map((t: string, i: number) => {
@@ -277,7 +289,7 @@ export function Dashboard() {
     });
   }, [forecastData]);
 
-  // --- AUDIT DATA ---
+  // Calculate historical averages for comparison audit
   const auditData = useMemo(() => {
     const now = Date.now();
     const periodAMs = auditDaysA * 24 * 60 * 60 * 1000;
@@ -312,6 +324,7 @@ export function Dashboard() {
     ];
   }, [records, auditDaysA, auditDaysB]);
 
+  // Export filtered telemetry data to CSV file
   const exportCSV = () => {
     if (!filteredRecords.length) return;
     const headers = Object.keys(filteredRecords[0]).join(",");
@@ -345,7 +358,7 @@ export function Dashboard() {
       </div>
 
       <div className="absolute inset-0 z-10 pointer-events-none flex flex-col p-4 md:p-6 overflow-hidden">
-        {/* HEADER CONTROLS */}
+        {/* Header navigation and filter bar */}
         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 shrink-0 w-full">
           <div className="glass-panel p-2 rounded-2xl flex overflow-x-auto pointer-events-auto custom-scrollbar w-full xl:w-auto shadow-2xl">
             {(["feed", "analytics", "sandbox", "audit"] as const).map((tab) => (
@@ -416,10 +429,10 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* FLOATING PANELS AREA */}
+        {/* Dynamic floating panel overlay area */}
         <div className="flex-1 mt-6 relative min-h-0 w-full pointer-events-none">
           <AnimatePresence mode="wait">
-            {/* FEED PANEL - *FIXED DYNAMIC HEIGHT MEASURING* */}
+            {/* Telemetry Log Feed Panel */}
             {activeTab === "feed" && (
               <motion.div
                 key="feed"
@@ -493,6 +506,7 @@ export function Dashboard() {
               </motion.div>
             )}
 
+            {/* Analytics Dashboard Panel */}
             {activeTab === "analytics" && (
               <motion.div
                 key="analytics"
@@ -667,6 +681,7 @@ export function Dashboard() {
               </motion.div>
             )}
 
+            {/* Sandbox Risk Simulation Panel */}
             {activeTab === "sandbox" && (
               <motion.div
                 key="sandbox"
@@ -701,6 +716,7 @@ export function Dashboard() {
               </motion.div>
             )}
 
+            {/* Historical Audit Comparison Panel */}
             {activeTab === "audit" && (
               <motion.div
                 key="audit"

@@ -14,10 +14,10 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+// Theme color palette definitions
 val PrimaryGreen = Color(0xFF2E7D32)
 val AccentOrange = Color(0xFFE65100)
 val SurfaceLight = Color(0xFFF5F5F6)
-
 val SurfaceDark = Color(0xFF000000)
 
 private val DarkColorScheme = darkColorScheme(
@@ -54,12 +54,16 @@ private val LightColorScheme = lightColorScheme(
     onErrorContainer = Color(0xFFB71C1C)
 )
 
+/** Tail recursive helper to resolve current Activity context. */
 tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.findActivity()
     else -> null
 }
 
+/**
+ * Application Material 3 design theme wrapper configuring light/dark color schemes and system bar styles.
+ */
 @Composable
 fun ForestSnapTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),

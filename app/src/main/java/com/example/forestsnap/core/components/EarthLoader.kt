@@ -31,6 +31,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * Animated Earth spinning loading indicator using custom vector canvas paths.
+ */
 @Composable
 fun EarthLoader(modifier: Modifier = Modifier) {
     val waterColor = Color(0xFF3344C1)

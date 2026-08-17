@@ -43,6 +43,7 @@ import com.example.forestsnap.features.map.MapScreen
 import com.example.forestsnap.features.settings.SettingsScreen
 import com.example.forestsnap.features.syncqueue.SyncQueueScreen
 
+/** Sealed class defining application navigation destinations and route signatures. */
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
     object Dashboard : Screen("dashboard", "Home", Icons.Filled.Home)
     object Map : Screen("map", "Map", Icons.Filled.Map)
@@ -55,6 +56,9 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
     }
 }
 
+/**
+ * Root Composable orchestrating bottom navigation bar, animated transitions, and destination screens.
+ */
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()

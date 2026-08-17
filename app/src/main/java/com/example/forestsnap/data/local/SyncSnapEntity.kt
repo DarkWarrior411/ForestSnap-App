@@ -3,6 +3,7 @@ package com.example.forestsnap.data.local
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+/** Room database entity table representing a captured field snapshot and its analysis state. */
 @Entity(tableName = "sync_snaps")
 data class SyncSnapEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,

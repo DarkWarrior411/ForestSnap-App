@@ -1,4 +1,6 @@
 import java.util.Properties
+
+// Plugin repositories configuration
 pluginManagement {
     repositories {
         google()
@@ -7,6 +9,7 @@ pluginManagement {
     }
 }
 
+// Load local configuration properties if present, fallback to environment variables
 val localProperties = Properties()
 val localPropertiesFile = File(rootDir, "local.properties")
 if (localPropertiesFile.exists()) {
@@ -14,6 +17,7 @@ if (localPropertiesFile.exists()) {
 }
 val mapboxToken = localProperties.getProperty("MAPBOX_DOWNLOADS_TOKEN") ?: System.getenv("MAPBOX_DOWNLOADS_TOKEN") ?: ""
 
+// Dependency resolution repositories including private Mapbox Maven endpoint
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
@@ -23,9 +27,7 @@ dependencyResolutionManagement {
         maven {
             url = uri("https://api.mapbox.com/downloads/v2/releases/maven")
             credentials {
-
                 username = "mapbox"
-
                 password = mapboxToken
             }
             authentication {

@@ -17,6 +17,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 
+/** Unit test suite verifying SyncQueueViewModel StateFlow emissions using CashApp Turbine. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SyncQueueViewModelTest {
 

@@ -18,6 +18,9 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Repository orchestrating local Room database operations and automatic background cloud synchronization.
+ */
 @Singleton
 class SyncSnapRepository @Inject constructor(
     database: ForestDatabase,
@@ -35,6 +38,7 @@ class SyncSnapRepository @Inject constructor(
         }
     }
 
+    /** Enqueue WorkManager background task for uploading pending survey snapshots. */
     private fun enqueueAutoSync() {
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
